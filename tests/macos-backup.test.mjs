@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { backupMacInstall } from '../scripts/macos-backup.mjs';
+const qa = fileURLToPath(new URL('../../qa/', import.meta.url));
+test('Mac rollback backup preserves operational config and prior source, never snapshots or overwrites ledger', () => {
+ fs.mkdirSync(qa, { recursive: true }); const root = fs.mkdtempSync(path.join(qa, 'mac-backup-'));
+ const dataDir = path.join(root, 'data'), oldRoot = path.join(root, 'old-plugin');
+ fs.mkdirSync(dataDir); fs.mkdirSync(oldRoot); fs.writeFileSync(path.join(oldRoot, 'source.mjs'), 'old source');
+ const plistPath = path.join(root, 'old.plist'); fs.writeFileSync(plistPath, 'old plist');
+ const previous = { platform: 'darwin', pluginRoot: oldRoot, launchAgentPath: plistPath, mode: 'standalone' };
+ fs.writeFileSync(path.join(dataDir, 'follow-config.json'), JSON.stringify(previous));
+ fs.writeFileSync(path.join(dataDir, 'ledger.json'), 'latest private ledger');
+ const receipt = backupMacInstall({ dataDir, pluginRoot: path.join(root, 'new-plugin'), plistPath, installId: 'test' });
+ assert.deepEqual(receipt.previous, previous);
+ assert.equal(fs.readFileSync(path.join(receipt.sourceBackup, 'source.mjs'), 'utf8'), 'old source');
+ assert.equal(fs.readFileSync(path.join(dataDir, 'ledger.json'), 'utf8'), 'latest private ledger');
+ assert.equal(fs.existsSync(path.join(receipt.backupDir, 'ledger.json')), false);
+ assert.equal(fs.readFileSync(path.join(receipt.backupDir, 'LaunchAgent.plist'), 'utf8'), 'old plist');
+});

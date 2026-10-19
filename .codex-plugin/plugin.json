@@ -1,0 +1,35 @@
+{
+  "name": "codex-dragon-maiden-widget",
+  "version": "0.1.0",
+  "description": "Codex 小龙娘：订阅额度、提问与授权提醒，随 Codex 窗口自动显示隐藏。",
+  "author": {
+    "name": "Codex Dragon Maiden Widget contributors"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex 小龙娘",
+    "shortDescription": "查看 Codex 订阅额度，提醒提问与授权。",
+    "longDescription": "可切换第一版与 A 版形象；支持拖动、气泡、音效与本地资源管理。额度来自官方账户接口，提醒不代替用户授权。",
+    "developerName": "Codex Dragon Maiden Widget contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "显示 Codex 小龙娘",
+      "查看 Codex 订阅额度",
+      "检查小龙娘自动跟随状态"
+    ],
+    "brandColor": "#8273C6",
+    "composerIcon": "./assets/dragon-maiden-bust-v1.png",
+    "logo": "./assets/dragon-maiden-bust-v1.png"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "desktop-pet",
+    "quota",
+    "dragon-maiden"
+  ],
+  "mcpServers": "./.mcp.json"
+}

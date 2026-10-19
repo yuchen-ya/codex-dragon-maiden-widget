@@ -1,0 +1,15 @@
+# Normalize line endings on commit so the repository stays consistent across
+# Windows checkouts: text files are stored with LF, Windows launchers keep CRLF
+# because .cmd wrappers require it.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.command text eol=lf
+*.swift text eol=lf
+*.png binary
+*.gif binary
+*.mp3 binary
+*.wav binary
+*.exe binary
+*.zip binary

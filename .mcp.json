@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "dragon_maiden": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/runtime/mcp.mjs"
+      ]
+    }
+  }
+}

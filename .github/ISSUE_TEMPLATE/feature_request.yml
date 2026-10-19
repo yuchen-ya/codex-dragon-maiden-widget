@@ -1,0 +1,61 @@
+name: 功能建议 / Feature request
+description: 为 codex-dragon-maiden-widget（Codex 桌面版小龙娘）提改进建议
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        建议前请查看本仓库 README.md 与 CHANGELOG.md。请说明小龙娘的实际使用场景及期望行为。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 方向
+      options:
+        - 界面与交互（菜单、气泡、拖动吸附、翻转）
+        - 订阅额度与本机用量
+        - 安装与运行稳定性（登录启动、跟随、恢复）
+        - 素材与音效（角色、泡泡图、音效组）
+        - 性能与资源占用
+        - 文档与可维护性
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述现状与痛点，比直接给方案更有帮助
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你设想的做法（可选）
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 你试过的替代方案（可选）
+    validations:
+      required: false
+  - type: dropdown
+    id: upstream
+    attributes:
+      label: 这个建议是否也适用于上游 DSH 网页版？
+      options:
+        - 只适用于 Codex 桌面版
+        - 两边都适用（可能该提到上游主分支）
+        - 不确定
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我没有在内容里包含任何真实密钥或凭据
+          required: true
+        - label: 我已搜索过现有 issue 与文档，未发现重复
+          required: true

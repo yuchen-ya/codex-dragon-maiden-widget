@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+import {createDispatcher} from '../runtime/dispatcher.mjs';
+import {WhaleService} from '../runtime/service.mjs';
+import {ConfigStore} from '../runtime/config.mjs';
+test('dragon maiden defaults to Codex quota and rejects API balance mode without changing account settings',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'whale-display-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const config=new ConfigStore({dataDir:dir,codexHome:dir,env:{}});
+ const api=createDispatcher({dataDir:dir,service:new WhaleService({config}),monitor:false,autoRefresh:false});t.after(()=>api.close());
+ const get=async()=>JSON.parse((await api.dispatch('/api/display-mode')).body);
+ assert.equal((await get()).mode,'subscription');
+ assert.equal((await api.dispatch('/api/display-mode',{method:'POST',body:{mode:'subscription'}})).status,200);
+ assert.equal((await get()).mode,'subscription');
+ assert.equal((await api.dispatch('/api/display-mode',{method:'POST',body:{mode:'other'}})).status,400);
+ assert.equal((await api.dispatch('/api/display-mode',{method:'POST',body:{mode:'api'}})).status,400);
+ assert.equal((await get()).mode,'subscription');
+ assert.equal(fs.existsSync(path.join(dir,'auth.json')),false);
+ assert.equal(fs.existsSync(path.join(dir,'api-settings.json')),false);
+});

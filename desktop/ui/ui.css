@@ -1,0 +1,71 @@
+:root{--teal:#146b70;font-family:Segoe UI,Microsoft YaHei,sans-serif}*{box-sizing:border-box}html,body{margin:0;background:transparent!important;overflow:hidden}button,input,select{font:inherit}button{cursor:pointer}.quiet{border:1px solid #d8e4e0;background:#fff;color:#466b70;border-radius:8px;padding:8px 12px}.primary{background:var(--teal);color:white;border:0;border-radius:8px;padding:10px 17px}.notice{padding:10px;background:#fff5e5;color:#856322;border-radius:8px;font-size:12px}[hidden]{display:none!important}dialog{border:1px solid #d8e4e0;border-radius:18px;padding:0;width:min(690px,94vw);max-height:89vh;color:#294c54;box-shadow:0 22px 100px #0b38492a;z-index:2147483647}dialog::backdrop{background:#183a4666;backdrop-filter:blur(3px)}dialog form{padding:26px}.dialog-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:20px}.dialog-header h2{font-size:19px;margin:0 0 8px}.dialog-header p,.help{font-size:11px;line-height:1.9;color:#7b8f93}.dialog-header p{margin:0}.icon-button{border:0;background:none;color:#67878b;font-size:26px;line-height:1}label{font-size:12px;display:block;margin:15px 0 0;color:#466b70}input,select{width:100%;border:1px solid #d9e4e1;border-radius:8px;padding:10px 11px;background:#fbfdfc;color:#244950;font-size:12px;margin-top:6px;min-width:0}input:focus,select:focus{outline:2px solid #b3d3cf}label small{display:block;font-size:10px;color:#95a5a7;line-height:1.65;margin-top:6px}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}details{border-top:1px solid #e5eeeb;margin-top:22px;padding-top:16px}summary{font-size:12px;color:#356a6c;cursor:pointer}.check{display:flex;align-items:center;gap:8px;margin-top:20px;line-height:1.6}.check input{width:15px;margin:0;accent-color:var(--teal)}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}#toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:min(600px,90vw);background:#163f49;color:#fff;border-radius:12px;padding:14px 22px;font-size:12px;box-shadow:0 6px 30px #0002;line-height:1.6}html.desktop,html.desktop body{background:transparent!important;overflow:hidden}.desktop .whale-shell{display:none}.desktop .dshwv-root{filter:drop-shadow(0 3px 6px #0002)}@media(max-width:620px){.whale-shell{padding:24px 22px 130px}.intro{margin-top:36px}.cards{grid-template-columns:1fr}.usage-card{padding:22px}.usage-number{margin:14px 0}.tips{padding-right:90px}.field-grid{grid-template-columns:1fr}.brand small{display:none}.big-number{font-size:42px}dialog form{padding:19px}}
+
+/* Translation, mirror and pressed-body transforms remain on separate layers. */
+.dshwv-position{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:9999;transition:transform .16s ease;will-change:transform}
+.desktop .dshwv-root{position:absolute;left:0;top:0;right:auto;bottom:auto;--dshw-base:clamp(122px,calc(250px * var(--dshw-scale)),625px);transition:transform .3s ease!important;isolation:isolate}
+.desktop .dshwv-body{will-change:transform}
+.desktop .dshwv-img{image-rendering:auto;backface-visibility:hidden}
+.desktop .dshwv-pop svg{shape-rendering:geometricPrecision}
+.desktop .dshwv-text{transition:opacity .16s ease,transform .3s ease;isolation:isolate;overflow:visible}
+.desktop .dshwv-pop.dshwv-pop-open .dshwv-text{transition:opacity .16s ease .36s,transform .3s ease}
+.dshwv-frame{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;will-change:opacity;overflow:visible}
+.desktop .dshwv-frame .dshwv-gif{position:static;left:auto;top:auto;transform:none;opacity:1;transition:none;max-width:calc(var(--dshw-u) * 560);max-height:calc(var(--dshw-u) * 400)}
+.desktop .dshwv-root.dshwv-left .dshwv-frame .dshwv-gif{transform:none}
+.desktop .dshwv-menu{max-height:calc(100vh - 16px);overflow:auto}
+
+.whale-v3-dialog{width:min(560px,90vw);max-height:85vh;overflow:auto;color:#203170;background:#fff;border:1px solid #bdc9df;border-radius:14px;padding:20px;font:14px/1.5 system-ui;pointer-events:auto}.whale-v3-dialog::backdrop{background:#182a4d66}.whale-v3-dialog h2{margin-top:0}.whale-v3-dialog label{display:flex;justify-content:space-between;gap:12px}.whale-v3-dialog fieldset{display:flex;align-items:center;gap:10px;border:1px solid #dbe4f5;border-radius:8px;margin:12px 0;flex-wrap:wrap}.whale-v3-dialog fieldset input{min-width:80px;flex:1}.whale-v3-dialog button,.whale-v3-dialog select{padding:6px 10px;border-radius:6px;border:1px solid #bdc9df;background:#f3f6fc;color:#203170}.whale-v3-dialog progress{width:100%;accent-color:#536ba9}.whale-v3-dialog p{white-space:normal;overflow-wrap:anywhere}
+
+.whale-v3-dialog>label{white-space:nowrap;align-items:center}.whale-v3-dialog>label>select{width:auto;min-width:0;flex:1}.whale-v3-dialog button:disabled{opacity:.45;cursor:not-allowed}
+/* Only editable fields accept text selection; dragging the companion never selects labels. */
+.dshwv-menu,.dshwv-menu *,.whale-account-card,.whale-account-card *{user-select:none;-webkit-user-select:none}
+.dshwv-menu input:not([type=range]):not([type=checkbox]),.dshwv-menu textarea,.whale-v3-dialog input:not([type=range]),.whale-v3-dialog textarea{user-select:text;-webkit-user-select:text}
+html[data-whale-cursor=grab]{cursor:grab}html[data-whale-cursor=grabbing],html[data-whale-cursor=grabbing] *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
+.whale-v3-dialog .dialog-actions{position:sticky;bottom:-20px;background:white;padding:12px 0;margin-top:12px;z-index:2}
+
+/* Compact native companion surfaces. No viewport-sized dimming or blur. */
+:root{--teal:#4259b0}
+html.desktop dialog::backdrop,html.desktop .whale-v3-dialog::backdrop{background:transparent;backdrop-filter:none}
+html.desktop [class*="mask"]{background:transparent!important;backdrop-filter:none!important}
+html.desktop .dshwv-menu{width:304px;min-width:0;max-width:calc(100vw - 16px);max-height:min(600px,calc(100vh - 24px));display:flex!important;flex-direction:column;overflow:hidden!important;padding:12px;background:#fff;border:1px solid #dce2ef;border-radius:16px;box-shadow:0 5px 14px #202e4b24;color:#28344d;transition:opacity .12s ease;transform:none!important}
+html.desktop .dshwv-menuview{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-width:thin;overscroll-behavior:contain;padding:0 2px}
+html.desktop .whale-account-menu{flex:0 0 auto;padding:2px 0 12px;border-bottom:1px solid #e7ebf3;margin-bottom:5px;color:#273650;font:12px/1.5 'Segoe UI','Microsoft YaHei',sans-serif}
+html.desktop .whale-account-menu>strong{display:block;font-size:14px;margin-bottom:10px}
+html.desktop .whale-menu-group{border:0;border-bottom:1px solid #edf0f5;margin:0;padding:0 0 4px}
+html.desktop .whale-menu-group>summary{padding:11px 2px;color:#35425c;font-size:12px;font-weight:600}
+html.desktop .dshwv-menu-row{margin:7px 0;font-size:11px;color:#5b6980;gap:6px}
+html.desktop .dshwv-menu .dshwv-api-open{display:none!important}
+html.desktop .dshwv-menu button{font-family:inherit}
+html.desktop .dshwv-menu input{margin-top:0}
+html.desktop .dshwv-menu input[type=range]{padding:0;border:0}
+html.desktop .dshwv-menu input[type=checkbox]{width:14px;height:14px;padding:0;accent-color:#4358aa}
+html.desktop .dshwv-menu button:focus-visible,html.desktop .whale-menu-group summary:focus-visible{outline:2px solid #6384d5;outline-offset:2px}
+html.desktop dialog{background:#fff;color:#293752;border:1px solid #dce2ef;border-radius:16px;box-shadow:0 5px 14px #202e4b24;width:min(570px,calc(100vw - 24px));max-height:calc(100vh - 32px);font:13px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}
+html.desktop dialog form{padding:22px}
+html.desktop .dialog-header{margin-bottom:16px}
+html.desktop .dialog-header h2{color:#283650;font-size:20px;letter-spacing:.2px}
+html.desktop .dialog-header p,html.desktop .help{font-size:12px;color:#788397;line-height:1.65}
+html.desktop dialog label{color:#536079;font-size:12px}
+html.desktop dialog input,html.desktop dialog select{background:#f8f9fc;border-color:#dfe4ee;color:#34425c;padding:9px 10px}
+html.desktop dialog details{margin-top:14px;padding-top:12px}
+html.desktop dialog summary{color:#495a83}
+html.desktop .dialog-actions{position:sticky;bottom:-22px;background:#fff;border-top:1px solid #e8edf4;padding-top:12px;margin-top:18px}
+html.desktop .primary{background:#4358aa;border-radius:9px}
+html.desktop .dshwv-usage-card{width:min(620px,calc(100vw - 24px));max-height:calc(100vh - 32px);border:1px solid #dce2ef;border-radius:16px;background:#fff;box-shadow:0 5px 14px #202e4b24;color:#34425c;font:13px/1.6 'Segoe UI','Microsoft YaHei',sans-serif;overflow:hidden}
+html.desktop .dshwv-usage-wintitle{padding:18px 22px 14px;font-size:19px;color:#283650;border-bottom:1px solid #edf0f5}
+html.desktop .dshwv-usage-close{top:15px;right:16px;color:#788397;font-size:22px}
+html.desktop .dshwv-usage-windowbody{padding:16px 22px 22px}
+html.desktop .dshwv-usage-oview{text-align:left;padding:16px 18px;margin-bottom:18px;background:#f3f5fc;border:1px solid #e7ebf6;border-radius:12px;color:#66738b}
+html.desktop .dshwv-usage-oview-num{font-size:32px;line-height:1.35;color:#34498a;margin:5px 0;font-variant-numeric:tabular-nums}
+html.desktop .dshwv-usage-hint{color:#7b869a;font-size:11px;line-height:1.7}
+html.desktop .dshwv-usage-collapse{padding:12px 4px;font-size:13px;color:#425477;border-color:#e8ecf3}
+html.desktop .dshwv-usage-collapse-body{padding:8px 4px}
+html.desktop .dshwv-usage-sub{background:#fff;color:#34425c}
+@media(max-height:420px){html.desktop .whale-account-menu small{display:none}html.desktop .whale-account-menu{padding-bottom:6px}html.desktop .whale-mode-description{margin:3px 0}html.desktop .whale-menu-group>summary{padding:7px 2px}}
+html.desktop .icon-button:focus-visible{outline:2px solid #8497d3;border-radius:6px}
+
+/* One inset rectangle shared by every bubble scene. Its corners sit inside the
+   white ellipse (center 454,248; radii 373,232 in the 1026x700 SVG). */
+.desktop .dshwv-text:has(>.dshwv-frame){left:44.25%;top:35.43%;width:50%;height:38%}
+.desktop .dshwv-frame{inset:auto;left:50%;top:50%;width:calc(100% / var(--whale-fit-scale,1));height:auto;min-height:0;transform:translate(-50%,-50%) scale(var(--whale-fit-scale,1));transform-origin:center;overflow:visible}
+.desktop .dshwv-frame>.dshwv-trow,.desktop .dshwv-frame>.dshwv-label,.desktop .dshwv-frame>.dshwv-amount,.desktop .dshwv-frame>.dshwv-hint{max-width:100%!important;white-space:pre-wrap!important;overflow-wrap:anywhere;word-break:break-word}
+.desktop .dshwv-frame>.dshwv-mimg,.desktop .dshwv-frame>.dshwv-gif{max-width:100%;object-fit:contain}

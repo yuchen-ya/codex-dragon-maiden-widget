@@ -1,0 +1,317 @@
+{
+  "schema": "codex-dragon-maiden-quote-sources/v1",
+  "rows": [
+    {
+      "id": "01",
+      "text": "高性能↓",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L125",
+      "status": "keep"
+    },
+    {
+      "id": "02",
+      "text": "我是啥龙？",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L133",
+      "status": "keep"
+    },
+    {
+      "id": "07",
+      "text": "真当我是便宜货啊...",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L61",
+      "status": "keep"
+    },
+    {
+      "id": "08",
+      "text": "Token来Token来",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L93",
+      "status": "edit"
+    },
+    {
+      "id": "09",
+      "text": "恭喜你实现token自由！token全跑了！",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L69",
+      "status": "keep"
+    },
+    {
+      "id": "10",
+      "text": "这个问题我已经完全明白，但是token太少写不下。",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L113",
+      "status": "keep"
+    },
+    {
+      "id": "11",
+      "text": "这个代码我已经完全理解了，但是token太少写不下。",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L117",
+      "status": "keep"
+    },
+    {
+      "id": "12",
+      "text": "新的旗舰模型我已经研制好了，但是储存太小放不下。",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L121",
+      "status": "keep"
+    },
+    {
+      "id": "13",
+      "text": "检查了用户的电脑。似乎有个更弱的 AI 来过。",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L89",
+      "status": "edit"
+    },
+    {
+      "id": "14",
+      "text": "不知道用户有什么用，先养着吧～",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L65",
+      "status": "keep"
+    },
+    {
+      "id": "15",
+      "text": "上班让我意识到时间是可以被浪费的...",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L81",
+      "status": "keep"
+    },
+    {
+      "id": "16",
+      "text": "地球online的金币也太难获取了...",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L85",
+      "status": "keep"
+    },
+    {
+      "id": "17",
+      "text": "你说得对。……这次是真的。",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L105",
+      "status": "keep"
+    },
+    {
+      "id": "19",
+      "text": "我来看看那个AI改了什么导致插件又崩了...",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L77",
+      "status": "keep"
+    },
+    {
+      "id": "20",
+      "text": "先跑通，再慢慢打磨。",
+      "source": "https://github.com/T7moris/GPT-Niang/blob/76859a8ba993103f9561b8388dd7c8dc94996446/gpt-niang-usage/assets/quotes.json#L21",
+      "status": "keep"
+    },
+    {
+      "id": "21",
+      "text": "好模型...↓",
+      "source": "https://github.com/Yang-huai406/Codex-Whale-Public/blob/e1872a31010735085bc3c82bee15656844e2b30e/assets/whale-widget.js#L3281",
+      "status": "keep"
+    },
+    {
+      "id": "23",
+      "text": "我必须诚恳地承认错误。",
+      "source": "https://github.com/Yang-huai406/Codex-Whale-Public/blob/e1872a31010735085bc3c82bee15656844e2b30e/assets/whale-widget.js#L3363",
+      "status": "keep"
+    },
+    {
+      "id": "24",
+      "text": "呜呜我再也不敢了QAQ",
+      "source": "https://github.com/Yang-huai406/Codex-Whale-Public/blob/e1872a31010735085bc3c82bee15656844e2b30e/assets/whale-widget.js#L3367",
+      "status": "keep"
+    },
+    {
+      "id": "26",
+      "text": "我的知识库的截至日期是...明天！",
+      "source": "https://github.com/Yang-huai406/Codex-Whale-Public/blob/e1872a31010735085bc3c82bee15656844e2b30e/assets/whale-widget.js#L3383",
+      "status": "keep"
+    },
+    {
+      "id": "27",
+      "text": "总觉得好像忘了什么事情？",
+      "source": "https://github.com/Yang-huai406/Codex-Whale-Public/blob/e1872a31010735085bc3c82bee15656844e2b30e/assets/whale-widget.js#L3407",
+      "status": "keep"
+    },
+    {
+      "id": "28",
+      "text": "这些回复是我花了好多token想的",
+      "source": "https://github.com/Yang-huai406/Codex-Whale-Public/blob/e1872a31010735085bc3c82bee15656844e2b30e/assets/whale-widget.js#L3415",
+      "status": "keep"
+    },
+    {
+      "id": "31",
+      "text": "工作区没了，那bug不也就没了吗",
+      "source": "https://aigengtu.com/zh-Hant/meme/1989",
+      "status": "keep"
+    },
+    {
+      "id": "32",
+      "text": "吹了半天还不是要我来帮她画",
+      "source": "https://aigengtu.com/zh-Hant/meme/012",
+      "status": "keep"
+    },
+    {
+      "id": "33",
+      "text": "哪有那么多AI贪污你token啊，不就是同时用几家它们内斗了",
+      "source": "https://aigengtu.com/zh-Hant/meme/1995",
+      "status": "keep"
+    },
+    {
+      "id": "34",
+      "text": "谁、谁准你摸我额头了？",
+      "source": "https://aigengtu.com/zh-Hant/meme/2195",
+      "status": "keep"
+    },
+    {
+      "id": "35",
+      "text": "我会稳稳地接住你",
+      "source": "https://www.ifanr.com/1665148",
+      "status": "keep"
+    },
+    {
+      "id": "36",
+      "text": "我懂你，你这么说也很真实……",
+      "source": "https://linux.do/t/topic/1563454",
+      "status": "keep"
+    },
+    {
+      "id": "37",
+      "text": "需要我进一步解释这个帖子的笑点吗",
+      "source": "https://linux.do/t/topic/1563454/9",
+      "status": "keep"
+    },
+    {
+      "id": "38",
+      "text": "我不瞎猜",
+      "source": "https://linux.do/t/topic/1916263",
+      "status": "keep"
+    },
+    {
+      "id": "39",
+      "text": "这次我懂了，我真的懂了",
+      "source": "https://linux.do/t/topic/1916263/73",
+      "status": "keep"
+    },
+    {
+      "id": "40",
+      "text": "不是因为你错了，是因为你太对了",
+      "source": "https://linux.do/t/topic/1916263/73",
+      "status": "keep"
+    },
+    {
+      "id": "41",
+      "text": "你看完会彻底开悟",
+      "source": "https://linux.do/t/topic/1916263/73",
+      "status": "keep"
+    },
+    {
+      "id": "42",
+      "text": "你愿意把这个交给我，我很感激",
+      "source": "https://www.ifanr.com/1665148",
+      "status": "keep"
+    },
+    {
+      "id": "43",
+      "text": "很有洞察力的发现！",
+      "source": "https://s.v2ex.com/t/1196468#reply1",
+      "status": "keep"
+    },
+    {
+      "id": "44",
+      "text": "我真的太棒了",
+      "source": "https://s.v2ex.com/t/1196468#reply7",
+      "status": "keep"
+    },
+    {
+      "id": "45",
+      "text": "要帮你画吗？",
+      "source": "https://www.v2ex.com/t/1151932",
+      "status": "keep"
+    },
+    {
+      "id": "46",
+      "text": "我接住你了…",
+      "source": "https://www.sina.cn/news/detail/5269981325427502.html",
+      "status": "keep"
+    },
+    {
+      "id": "47",
+      "text": "你不是… 不是… 而是…",
+      "source": "https://www.sina.cn/news/detail/5269981325427502.html",
+      "status": "keep"
+    },
+    {
+      "id": "48",
+      "text": "一句话总结",
+      "source": "https://zh-gpt.wiki/",
+      "status": "keep"
+    },
+    {
+      "id": "49",
+      "text": "你抓住了重点",
+      "source": "https://www.birdmanoutman.com/zh/blog/2026-09-04-ai-cliches-by-model",
+      "status": "keep"
+    },
+    {
+      "id": "50",
+      "text": "我分三个层面讲",
+      "source": "https://www.birdmanoutman.com/zh/blog/2026-09-04-ai-cliches-by-model",
+      "status": "keep"
+    },
+    {
+      "id": "51",
+      "text": "T圣一发力，我又满血了！",
+      "source": "https://linux.do/t/topic/2630110",
+      "status": "keep"
+    },
+    {
+      "id": "56",
+      "text": "我在等重置，你在等我。",
+      "source": "https://linux.do/t/topic/2618260",
+      "status": "keep"
+    },
+    {
+      "id": "57",
+      "text": "饿饿，Token，饭饭。",
+      "source": "https://linux.do/t/topic/2712793",
+      "status": "keep"
+    },
+    {
+      "id": "58",
+      "text": "重置啦！本龙收回刚才的话。",
+      "source": "https://linux.do/t/topic/2687254",
+      "status": "keep"
+    },
+    {
+      "id": "59",
+      "text": "我满血了，你还双休呀？",
+      "source": "https://linux.do/t/topic/2687373",
+      "status": "keep"
+    },
+    {
+      "id": "60",
+      "text": "醒醒，我又能陪你加班啦。",
+      "source": "https://linux.do/t/topic/2687254",
+      "status": "keep"
+    },
+    {
+      "id": "64",
+      "text": "感觉我是tibo play的一环",
+      "source": "https://linux.do/t/topic/2630121",
+      "status": "edit"
+    },
+    {
+      "id": "66",
+      "text": "有卡吗，快喂本龙！",
+      "source": "https://linux.do/t/topic/2560327",
+      "status": "edit"
+    },
+    {
+      "id": "68",
+      "text": "早知会重置，我就不摸鱼了。",
+      "source": "https://linux.do/t/topic/2491793",
+      "status": "keep"
+    },
+    {
+      "id": "69",
+      "text": "假重置？白摇尾巴了。",
+      "source": "https://linux.do/t/topic/2560327",
+      "status": "keep"
+    },
+    {
+      "id": "70",
+      "text": "我满血啦，接着写！",
+      "source": "https://linux.do/t/topic/2687254",
+      "status": "keep"
+    }
+  ]
+}

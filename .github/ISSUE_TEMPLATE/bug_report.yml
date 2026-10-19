@@ -1,0 +1,34 @@
+name: 缺陷反馈
+description: 反馈窗口显示、额度、提醒或安装问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先查看本仓库 README.md 与 CHANGELOG.md，注明小龙娘版本、安装方式及是否自行修改。
+        请勿提交 API 密钥、认证文件、完整聊天日志或未脱敏的账户截图。
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      description: 插件、Windows/macOS、Codex、Node.js 版本，显示器数量与缩放，以及全新安装或升级。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 说明最小化、还原、保存/取消或任务取消等操作顺序及发生频率。
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 预期结果与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已脱敏的补充信息
+      description: 可提供错误类别、相关时间和裁剪后的截图；不需要真实账户或接口地址。

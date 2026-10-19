@@ -5,7 +5,11 @@ import fs from 'node:fs';
 import { DATA_HOME, VERSION, readJson, writeJson } from './paths.mjs';
 
 export function pipeName(dataDir = DATA_HOME) {
-  const hash = crypto.createHash('sha256').update(path.resolve(dataDir).toLowerCase()).digest('hex').slice(0, 24);
+  const resolved = path.resolve(dataDir);
+  const hash = crypto.createHash('sha256').update(process.platform === 'win32' ? resolved.toLowerCase() : resolved).digest('hex').slice(0, 24);
+  // Darwin's sockaddr_un has only 104 bytes, including the terminating NUL.
+  // HOME and the system temp directory can both exceed that before the filename.
+  if (process.platform === 'darwin') return path.join('/tmp', 'codex-dragon-maiden-' + process.getuid(), hash + '.sock');
   return process.platform === 'win32' ? '\\\\.\\pipe\\codex-dragon-maiden-' + hash : path.join(dataDir, 'whale-' + hash + '.sock');
 }
 const ALLOWED = new Map([
@@ -15,6 +19,14 @@ const ALLOWED = new Map([
 
 export async function startBridge(dispatcher, { dataDir = DATA_HOME, onHost = null, onMode = null, onResetPosition = null } = {}) {
   const pipe = pipeName(dataDir), token = crypto.randomBytes(32).toString('hex'), instanceId = crypto.randomUUID();
+  if (process.platform === 'darwin') {
+    const directory = path.dirname(pipe);
+    fs.mkdirSync(directory, { mode: 0o700, recursive: true });
+    const stat = fs.lstatSync(directory);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid() || (stat.mode & 0o077) !== 0) {
+      throw new Error('Desktop IPC directory must be private and owned by the current user');
+    }
+  }
   if (process.platform !== 'win32' && fs.existsSync(pipe)) {
     // A recycled PID or missing runtime.json must never unlink a live socket.
     if (await socketResponds(pipe)) throw new Error('A desktop IPC server is already listening');

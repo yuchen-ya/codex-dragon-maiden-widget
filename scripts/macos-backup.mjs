@@ -1,5 +1,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
+
+export function restoreMacLaunchAgent({ receipt, current, domain, run }) {
+  const service = domain + '/' + (current.label || 'com.codex-dragon-maiden-widget.codex');
+  if (!receipt.hadInstall) {
+    run(['disable', service]);
+    fs.rmSync(current.launchAgentPath || receipt.plistPath, { force: true });
+    return;
+  }
+  const previous = receipt.previous;
+  const oldService = domain + '/' + previous.label;
+  const backup = path.join(receipt.backupDir, 'LaunchAgent.plist');
+  if (!fs.existsSync(backup) && previous.enabled !== false) throw new Error('Previous LaunchAgent backup is missing');
+  if (fs.existsSync(backup)) fs.copyFileSync(backup, receipt.plistPath);
+  else fs.rmSync(receipt.plistPath, { force: true });
+  if (previous.enabled === false) run(['disable', oldService]);
+  else {
+    run(['enable', oldService]);
+    run(['bootstrap', domain, receipt.plistPath]);
+    run(['kickstart', oldService]);
+  }
+}
+
 export function backupMacInstall({ dataDir, pluginRoot, plistPath, installId }) {
   const backupDir = path.join(dataDir, 'backups', 'macos-' + installId);
   fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });

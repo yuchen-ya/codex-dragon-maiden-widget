@@ -253,7 +253,8 @@ function startProbe() {
   const generation = ++probeGeneration;
   probeBuffer = '';
   lastProbeAt = Date.now();
-  const current = spawn(probePath, ['--bundle-id', process.env.WHALE_CODEX_BUNDLE_ID || config.bundleId || 'com.openai.codex'], {
+  const appPath = process.env.WHALE_CODEX_APP_PATH || config.appPath;
+  const current = spawn(probePath, ['--bundle-id', process.env.WHALE_CODEX_BUNDLE_ID || config.bundleId || 'com.openai.codex', ...(appPath ? ['--app-path', appPath] : [])], {
     cwd: pluginRoot,
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],

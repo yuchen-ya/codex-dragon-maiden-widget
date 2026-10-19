@@ -1,0 +1,74 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { spawn, execFileSync } from 'node:child_process';
+import { once } from 'node:events';
+import { bridgeRequest } from '../runtime/bridge.mjs';
+import { ROOT, DATA_HOME } from '../runtime/paths.mjs';
+if (process.platform !== 'darwin') throw new Error('This smoke test requires macOS.');
+const root = ROOT;
+const output = path.resolve(process.argv[2] || path.join(root, 'qa-output/macos-follow-smoke'));
+fs.mkdirSync(output, { recursive: true });
+const dataDir = fs.mkdtempSync(path.join(output, 'data-'));
+const hostApp = path.join(output, 'native/Host.app');
+const probe = path.join(output, 'window-probe');
+const bundle = 'com.codex-dragon-maiden-widget.qa-host';
+const electron = path.join(DATA_HOME, 'desktop-runtime/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
+if (!fs.existsSync(electron)) throw new Error('Install the Electron runtime with scripts/install-desktop.mjs first.');
+fs.mkdirSync(path.join(hostApp, 'Contents/MacOS'), { recursive: true });
+fs.writeFileSync(path.join(hostApp, 'Contents/Info.plist'), `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${bundle}</string><key>CFBundleExecutable</key><string>Host</string><key>CFBundleName</key><string>Dragon Maiden QA Host</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>`);
+execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-framework', 'AppKit', '-o', path.join(hostApp, 'Contents/MacOS/Host'), path.join(ROOT, 'tests/macos-host-fixture.swift')]);
+execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-framework', 'AppKit', '-framework', 'CoreGraphics', '-o', probe, path.join(ROOT, 'desktop/macos/window-probe.swift')]);
+execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', hostApp]);
+const configFile = path.join(dataDir, 'follow-config.json');
+const config = { platform:'darwin',enabled:true,mode:'follow-codex',bundleId:bundle,appPath:hostApp,electronPath:electron,probePath:probe };
+fs.writeFileSync(configFile, JSON.stringify(config));
+let diagnostic = '', checks = [];
+fs.rmSync(path.join(output, 'native-follow.json'), { force: true });
+const host = spawn(path.join(hostApp, 'Contents/MacOS/Host'), [], {stdio:['pipe','ignore','pipe']});
+host.stderr.on('data', x=>diagnostic+=x);
+const supervisor = spawn(process.execPath, [path.join(root,'desktop/macos/supervisor.mjs'),'--data-dir',dataDir,'--plugin-root',root], {env:{...process.env,CODEX_HOME:path.join(dataDir,'codex'),WHALE_HOME:dataDir},stdio:['ignore','ignore','pipe']});
+supervisor.stderr.on('data', x=>diagnostic+=x);
+const delay = ms=>new Promise(r=>setTimeout(r,ms));
+async function until(read, predicate, label) {
+  const deadline=Date.now()+15000;
+  while(Date.now()<deadline) {try{const value=await read(); if(predicate(value))return value;}catch{} await delay(100);}
+  throw Error('Timed out: '+label+' '+diagnostic.slice(-2000));
+}
+const status = ()=>bridgeRequest('/api/status',{dataDir,timeoutMs:600});
+const native = ()=>JSON.parse(execFileSync(probe,['--once','--bundle-id',bundle,'--app-path',hostApp],{encoding:'utf8'}));
+const command = value=>host.stdin.write(value+'\n');
+try {
+  const first=await until(status,x=>x.rendererReady&&x.visible,'native host ready');
+  assert.equal(first.hostPid,host.pid); checks.push('real AppKit host identified by bundle and executable path');
+  const before=first.windowBounds;
+  command('move');
+  const moved=await until(status,x=>x.windowBounds.width===700&&x.windowBounds.height===500,'native host resize');
+  assert.notEqual(moved.windowBounds.x,before.x); checks.push('CGWindow coordinates propagate through supervisor IPC to Electron geometry');
+  command('minimize'); await until(status,x=>x.visible===false,'native minimize');
+  assert.equal(native().hostAlive,true); checks.push('actual native minimization hides companion without killing host');
+  command('restore'); await until(status,x=>x.visible===true,'native restore');
+  checks.push('actual native restore shows companion again');
+  command('hide'); await until(status,x=>x.visible===false,'host app hidden');
+  checks.push('background or hidden host cannot float above another app');
+  command('show'); await until(status,x=>x.visible===true,'host show');
+  await bridgeRequest('/api/stop',{dataDir,method:'POST'});
+  await until(async()=>{try{await status();return false;}catch{return true;}},Boolean,'pet paused');
+  command('move'); await delay(4500);
+  await assert.rejects(status()); checks.push('manual exit remains paused across native window changes');
+  fs.rmSync(path.join(dataDir,'pause-until-host-exit.json'));
+  await until(status,x=>x.rendererReady,'explicit resume');
+  await bridgeRequest('/api/desktop-mode',{dataDir,method:'POST',body:{mode:'standalone'}});
+  command('quit'); await once(host,'close');
+  await until(status,x=>x.rendererReady&&x.visible&&x.desktopMode==='standalone','standalone after host quit');
+  checks.push('standalone survives real host process exit');
+  await bridgeRequest('/api/desktop-mode',{dataDir,method:'POST',body:{mode:'follow-codex'}});
+  await until(async()=>{try{await status();return false;}catch{return true;}},Boolean,'follow exits with absent host');
+  checks.push('switching back to follow exits when the real host is absent');
+  fs.writeFileSync(path.join(output,'native-follow.json'),JSON.stringify({ok:true,checks},null,2));
+  console.log(JSON.stringify({ok:true,checks},null,2));
+} finally {
+  host.kill('SIGTERM'); supervisor.kill('SIGTERM');
+  await Promise.race([once(supervisor,'close'),delay(6000)]);
+  fs.writeFileSync(path.join(output,'native-follow.log'),diagnostic);
+}

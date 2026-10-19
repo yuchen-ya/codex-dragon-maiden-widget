@@ -203,7 +203,7 @@ report = {'displayVersion': distribution.removeprefix('Codex-') if distribution.
           'publishedFieldScope': 'Local build time only; this script never publishes. Consult the GitHub Release for current publication status.',
           'distributionName': distribution,
           'lineEndings': 'LF for source and Mac launchers; CRLF for Windows .cmd/.ps1; UTF-8 BOM for Windows PowerShell',
-          'releaseTag': args.release_tag, 'offlineInstaller': False, 'macOS': 'static-checks-no-hardware-acceptance', 'subscriptionLiveAccount': 'verified-on-Windows',
+          'releaseTag': args.release_tag, 'offlineInstaller': False, 'macOS': 'verified-Apple-Silicon-macOS-27.0.1-see-docs-VALIDATION', 'subscriptionLiveAccount': 'verified-on-Windows-and-macOS',
           'macOSPR': 'https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128',
           'privacyScan': 'passed-public-files-only', 'archiveIntegrity': 'passed', 'localLinksChecked': links,
           'excluded': ['user data and credentials', 'private installation receipts', 'logs and test output', 'chat screenshots and recordings', 'legacy docs/images', 'git history and runtime caches'],

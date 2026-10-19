@@ -36,6 +36,25 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-package.ps1 -CheckOnly
 ```
 
+## macOS 安装
+
+已在 Apple Silicon、macOS 27.0.1、Retina 屏幕上进行实机验证；Intel Mac 尚未实测。
+
+1. 安装并登录 Codex 桌面端，准备 Node.js 24+（含 npm）。启动器支持终端 PATH、Homebrew、nvm、Volta、mise，也会尝试复用本机可用的 Codex Node 运行时，并跳过低于 24 的版本。
+2. 安装 Xcode Command Line Tools；如尚未安装，运行 `xcode-select --install`，安装完成后再继续。窗口探测组件使用本机 Swift 编译。
+3. 将项目保存在固定目录，双击 **`安装 Mac 自动跟随.command`**。安装器下载 Electron、编译窗口探测组件、配置订阅额度和提醒 Hook，并注册当前用户的 LaunchAgent。首次安装需要联网；下载会使用已配置的 HTTP(S) 代理。
+4. 在 Codex 的 Hooks 界面审核并信任包含 `interaction-hook.mjs` 的提醒 Hook。
+
+macOS 的个人数据和 Electron 位于 `~/.codex/dragon-maiden-widget`，登录启动项为 `~/Library/LaunchAgents/com.codex-dragon-maiden-widget.codex.plist`。代码直接使用当前项目目录；移动目录后应重新运行安装器。通过 `CODEX_HOME`、`WHALE_HOME` 自定义的数据目录会保存在启动项中。
+
+- **`启动桌面挂件.command`**：恢复显示；`⌘⌥W` 可切换显示和隐藏。
+- **`进入独立桌面.command`**：切换到不依赖 Codex 窗口的桌面模式。
+- **`停止挂件服务.command`**：本次退出，下次重新打开 Codex 或手动启动时恢复。
+- **`停用自动跟随.command`**：停止挂件并移除登录启动项，保留设置、素材和提醒 Hook。
+- **`回滚 Mac 更新.command`**：使用本次安装的私有回执恢复先前的运行配置。
+
+跟随模式下，挂件随 Codex 窗口移动和缩放；最小化、隐藏或切换到其他应用时隐藏，返回 Codex 后恢复。打开挂件设置时保持显示。额度读取支持 Mac 桌面端携带的 CLI，不依赖登录启动项的 shell PATH。自定义安装位置可在安装前设置 `WHALE_CODEX_APP_PATH`，手动指定 CLI 可使用 `CODEX_CLI`。
+
 ## 使用与卸载
 
 - **`启动桌面挂件.cmd`**：恢复显示；菜单和托盘均可调整设置。
@@ -45,8 +64,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-package.
 - **`进入独立桌面.cmd`**：主动切换为不跟随 Codex 的桌面模式。
 
 更新时重新运行安装器，个人素材和设置保留。用户主动退出后会保留暂停意图；可点击启动入口恢复，或更新时传入 `-Resume`。
-
-macOS 保留上游兼容实现与 `.command` 入口，当前版本尚未进行 Mac 实机验收；Windows 是本次验证的平台。
 
 ## 额度、提醒与隐私
 
@@ -65,10 +82,12 @@ macOS 保留上游兼容实现与 `.command` 入口，当前版本尚未进行 M
 ```powershell
 npm test
 node scripts/check-package.mjs
-python scripts/build-release.py --release-tag v0.1.1
+python scripts/build-release.py --release-tag v0.1.2
 ```
 
 生成的安装包、源码包、校验和与清单位于 `dist/`，不包含 Electron 下载缓存和个人数据。构建脚本不会上传或发布。开发请隔离 `CODEX_HOME` 与 `WHALE_HOME`，见 [贡献指南](AGENTS.md)。
+
+Mac 界面与原生跟随测试可分别运行 `npm run smoke:mac`、`npm run smoke:mac-follow`。它们使用 `qa-output/` 下的隔离数据；原生测试创建临时 AppKit 窗口，覆盖移动、缩放、最小化、恢复、隐藏、暂停及宿主退出。先运行 `node scripts/install-desktop.mjs` 准备 Electron；如运行时安装在自定义数据目录，测试时传入相同的 `WHALE_HOME`。
 
 ## 来源与许可
 

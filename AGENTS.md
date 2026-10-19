@@ -24,7 +24,7 @@ Use Node.js 24+ from the repository root. No application compilation step is req
 - `node --test tests/core.test.mjs`: run one focused suite.
 - `node scripts/check-package.mjs`: verify release metadata, required files, and module imports.
 - `node scripts/install-desktop.mjs`: provision the Electron runtime before first launch.
-- `python scripts/build-release.py --release-tag v0.1.1`: build clean installation/source ZIPs; never uploads.
+- `python scripts/build-release.py --release-tag v0.1.2`: build clean installation/source ZIPs; never uploads.
 - `npm start`: open the widget; `npm run desktop` selects standalone desktop mode.
 
 For development and tests, isolate local data using PowerShell:
@@ -33,6 +33,13 @@ For development and tests, isolate local data using PowerShell:
 $env:CODEX_HOME = "$PWD/qa-output/dev/codex"
 $env:WHALE_HOME = "$PWD/qa-output/dev/whale"
 ```
+
+On macOS, use `export CODEX_HOME="$PWD/qa-output/dev/codex"` and
+`export WHALE_HOME="$PWD/qa-output/dev/whale"`. The Finder launchers locate Node
+24+; `zsh scripts/macos-launcher.command --test tests/*.test.mjs` uses that same
+interpreter selection. After installing Electron into the isolated data home,
+run `npm run smoke:mac` and `npm run smoke:mac-follow` sequentially. Both open
+native windows, so concurrent runs can interfere with foreground/focus checks.
 
 ## Coding Style & Naming Conventions
 

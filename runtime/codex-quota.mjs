@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import readline from 'node:readline';
 import { spawn } from 'node:child_process';
 import { quotaWindows } from './insights-worker.mjs';
@@ -7,8 +8,28 @@ import { VERSION } from './paths.mjs';
 
 export class CodexQuotaError extends Error {}
 
-export function findCodexCli(env = process.env, platform = process.platform) {
+function executableFile(file) {
+  try { fs.accessSync(file, fs.constants.X_OK); return fs.statSync(file).isFile(); } catch { return false; }
+}
+
+export function findCodexCli(env = process.env, platform = process.platform, { isExecutable = executableFile } = {}) {
   if (env.CODEX_CLI) return env.CODEX_CLI;
+  if (platform === 'darwin') {
+    // launchd does not inherit the interactive shell PATH. The desktop app
+    // carries its own CLI, including installs whose visible name is ChatGPT.
+    const applications = [
+      env.WHALE_CODEX_APP_PATH,
+      '/Applications/Codex.app', '/Applications/ChatGPT.app',
+      path.join(env.HOME || os.homedir(), 'Applications', 'Codex.app'),
+      path.join(env.HOME || os.homedir(), 'Applications', 'ChatGPT.app'),
+    ].filter(Boolean);
+    for (const application of applications) {
+      const resource = path.join(application, 'Contents', 'Resources', 'codex-cli');
+      for (const cli of [path.join(resource, 'bin', 'codex'), path.join(resource, 'CodexCLI.app', 'Contents', 'MacOS', 'codex'), resource]) {
+        if (isExecutable(cli)) return cli;
+      }
+    }
+  }
   if (platform === 'win32' && env.LOCALAPPDATA) {
     const directory = path.join(env.LOCALAPPDATA, 'OpenAI', 'Codex', 'bin');
     if (fs.existsSync(directory)) {

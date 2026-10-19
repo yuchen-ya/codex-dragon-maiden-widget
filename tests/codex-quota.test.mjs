@@ -2,7 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { CodexQuotaError, normalizeCodexQuota, readCodexQuota, createCodexQuotaService } from '../runtime/codex-quota.mjs';
+import { CodexQuotaError, findCodexCli, normalizeCodexQuota, readCodexQuota, createCodexQuotaService } from '../runtime/codex-quota.mjs';
+
+test('macOS background quota reads find the desktop CLI without a shell PATH', () => {
+  const bundled = '/Applications/ChatGPT.app/Contents/Resources/codex-cli';
+  assert.equal(findCodexCli({ PATH: '/usr/bin:/bin' }, 'darwin', { isExecutable: file => file === bundled }), bundled);
+  for (const cli of [bundled + '/bin/codex', bundled + '/CodexCLI.app/Contents/MacOS/codex']) {
+    assert.equal(findCodexCli({}, 'darwin', { isExecutable: file => file === cli }), cli);
+  }
+  const custom = '/Volumes/Apps/Codex Dev.app/Contents/Resources/codex-cli';
+  assert.equal(findCodexCli({ WHALE_CODEX_APP_PATH: '/Volumes/Apps/Codex Dev.app' }, 'darwin', { isExecutable: file => file === custom }), custom);
+  assert.equal(findCodexCli({ CODEX_CLI: '/custom/codex' }, 'darwin'), '/custom/codex');
+  assert.equal(findCodexCli({}, 'darwin', { isExecutable: () => false }), 'codex');
+});
 
 const snapshot = () => ({
   accountId: 'PRIVATE_ACCOUNT_ID',

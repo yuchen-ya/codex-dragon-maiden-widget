@@ -17,5 +17,8 @@ for (const name of ['../runtime/interaction-notices.mjs', '../desktop/ui/interac
   if (!fs.existsSync(fileURLToPath(new URL(name, import.meta.url)))) throw new Error('Interaction reminder dependency missing: ' + name);
 }
 await import('../runtime/dispatcher.mjs');
+for (const name of ['scripts/macos-launcher.command', 'scripts/install-macos.mjs', 'desktop/macos/supervisor.mjs', 'desktop/macos/window-probe.swift']) {
+  if (!fs.existsSync(fileURLToPath(new URL('../' + name, import.meta.url)))) throw new Error('macOS dependency missing: ' + name);
+}
 await import('../runtime/process.mjs');
 process.stdout.write('Package v' + version + ' metadata and dependency graph are complete.\n');

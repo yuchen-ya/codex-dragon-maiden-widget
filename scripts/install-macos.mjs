@@ -4,7 +4,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { backupMacInstall } from './macos-backup.mjs';
-import { DATA_HOME, ROOT, VERSION } from '../runtime/paths.mjs';
+import { CODEX_HOME, DATA_HOME, ROOT, VERSION } from '../runtime/paths.mjs';
+import { findCodexCli } from '../runtime/codex-quota.mjs';
 
 if (process.platform !== 'darwin') {
   process.stderr.write('This installer is only for macOS.\n');
@@ -21,8 +22,10 @@ const electronPath = path.join(electronApp, 'Contents', 'MacOS', 'Electron');
 const desktopBundleID = 'com.codex-dragon-maiden-widget.codex.desktop';
 const supervisorPath = path.join(ROOT, 'desktop', 'macos', 'supervisor.mjs');
 const probeSource = path.join(ROOT, 'desktop', 'macos', 'window-probe.swift');
-const homebrewNode = ['/opt/homebrew/bin/node', '/usr/local/bin/node'].find(file => fs.existsSync(file));
-const nodePath = homebrewNode || process.execPath;
+// Keep the validated interpreter selected by the launcher; Homebrew may contain
+// an older Node than the one currently running this installer.
+if (Number(process.versions.node.split('.')[0]) < 24) throw new Error('macOS 安装需要 Node.js 24+，请使用“安装 Mac 自动跟随.command”。');
+const nodePath = process.execPath;
 const installId = randomUUID();
 
 function run(command, args, options = {}) {
@@ -48,8 +51,8 @@ function plistSet(key, value, type = 'string') {
 
 function prepareElectronBundle() {
   plistSet('CFBundleIdentifier', desktopBundleID);
-  plistSet('CFBundleName', 'API Balance Whale');
-  plistSet('CFBundleDisplayName', 'API Balance Whale');
+  plistSet('CFBundleName', 'Codex Dragon Maiden');
+  plistSet('CFBundleDisplayName', 'Codex 小龙娘');
   plistSet('LSUIElement', 'true', 'bool');
   run('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', electronApp]);
   const stale = path.join(os.homedir(), 'Library', 'Saved Application State', desktopBundleID + '.savedState');
@@ -89,6 +92,9 @@ function writeLaunchAgent() {
     '--plugin-root',
     ROOT,
   ];
+  const environment = { CODEX_HOME, WHALE_HOME: DATA_HOME };
+  const codexCli = findCodexCli();
+  if (path.isAbsolute(codexCli)) environment.CODEX_CLI = codexCli;
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -97,6 +103,8 @@ function writeLaunchAgent() {
   <key>ProgramArguments</key>
   <array>${program.map(value => `<string>${xml(value)}</string>`).join('')}</array>
   <key>WorkingDirectory</key><string>${xml(ROOT)}</string>
+  <key>EnvironmentVariables</key>
+  <dict>${Object.entries(environment).map(([key, value]) => `<key>${xml(key)}</key><string>${xml(value)}</string>`).join('')}</dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ProcessType</key><string>Interactive</string>
@@ -172,7 +180,8 @@ const config = {
   electronPath,
   probePath,
   launchAgentPath: plistPath,
-  bundleId: process.env.WHALE_CODEX_BUNDLE_ID || 'com.openai.codex',
+  bundleId: process.env.WHALE_CODEX_BUNDLE_ID || rollbackReceipt.previous?.bundleId || 'com.openai.codex',
+  appPath: process.env.WHALE_CODEX_APP_PATH || rollbackReceipt.previous?.appPath || null,
 };
 fs.writeFileSync(path.join(DATA_HOME, 'follow-config.json'), JSON.stringify(config, null, 2));
 fs.writeFileSync(path.join(DATA_HOME, 'follow-install.json'), JSON.stringify({
@@ -201,6 +210,7 @@ for (let attempt = 0; attempt < 30; attempt++) {
 if (!verified) {
   throw new Error('LaunchAgent was installed, but the supervisor did not report ready. See macos-launchagent-error.log.');
 }
+run(nodePath, [path.join(ROOT, 'scripts', 'verify-runtime.mjs'), '--allow-idle']);
 
 process.stdout.write('macOS desktop component v' + VERSION + ' and automatic following are installed.\n');
-process.stdout.write('Open the Codex desktop app; the whale will appear when a Codex window is available.\n');
+process.stdout.write('打开 Codex 桌面应用，小龙娘会随窗口显示。\n');

@@ -107,7 +107,13 @@ function applyWindowShape(rects) {
 function setKeyboardFocus(editing) {
   if (!window || window.isDestroyed() || keyboardFocus === editing) return;
   keyboardFocus = editing;
-  if (editing) window.focus();
+  if (editing) {
+    // Accessory apps on macOS need application activation as well as window
+    // focus before form fields and Escape can receive keyboard events.
+    if (isMac) app.focus({ steal: true });
+    window.focus();
+    if (isMac) window.webContents.focus();
+  }
 }
 function sendCursor(force = false) {
   if (!window || window.isDestroyed() || !rendererReady || !window.isVisible()) return;
@@ -347,7 +353,7 @@ else {
     markStartup('pageLoaded');
     if (lastHost) await setHost(lastHost);
     if (fixture) {
-      const fixtureModule = process.env.WHALE_ACCOUNT_NOTICES === '1' ? 'account-notice-fixture.mjs' : process.env.WHALE_RAPID_CLICK === '1' ? 'rapid-click-fixture.mjs' : process.env.WHALE_ISSUE_LAYOUT === '1' ? 'issue-layout-fixture.mjs' : process.env.WHALE_ROOT_FIXES === '1' ? 'root-fixes-fixture.mjs' : process.env.WHALE_POSITION_MEMORY === '1' ? 'position-memory-fixture.mjs' : process.env.WHALE_VISIBILITY_STRESS === '1' ? 'visibility-stress-fixture.mjs' : process.env.WHALE_DESKTOP_AUDIT === '1' ? 'desktop-audit-fixture.mjs' : 'desktop-fixture.mjs';
+      const fixtureModule = process.env.WHALE_MACOS_SMOKE === '1' ? 'macos-desktop-fixture.mjs' : process.env.WHALE_ACCOUNT_NOTICES === '1' ? 'account-notice-fixture.mjs' : process.env.WHALE_RAPID_CLICK === '1' ? 'rapid-click-fixture.mjs' : process.env.WHALE_ISSUE_LAYOUT === '1' ? 'issue-layout-fixture.mjs' : process.env.WHALE_ROOT_FIXES === '1' ? 'root-fixes-fixture.mjs' : process.env.WHALE_POSITION_MEMORY === '1' ? 'position-memory-fixture.mjs' : process.env.WHALE_VISIBILITY_STRESS === '1' ? 'visibility-stress-fixture.mjs' : process.env.WHALE_DESKTOP_AUDIT === '1' ? 'desktop-audit-fixture.mjs' : 'desktop-fixture.mjs';
       const { verifyDesktop } = await import(pathToFileURL(path.join(root, 'tests', fixtureModule)));
       await verifyDesktop({ app, window, screen, setHost, setTestCursor, dispatcher, dataDir, errors: rendererErrors, openedLinks: fixtureOpenedLinks, renderInfo: () => ({ gpuStatus, presents, inputEnabled, keyboardFocus, windowShape, windowShapeError, visibility: visibilityController.snapshot() }) });
     }

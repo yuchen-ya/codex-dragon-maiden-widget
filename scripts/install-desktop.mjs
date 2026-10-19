@@ -42,6 +42,10 @@ if (!npm) { process.stderr.write('请先安装包含 npm 的 Node.js 24 或更�
 fs.mkdirSync(runtimeDir, { recursive: true });
 let result = spawnSync(process.execPath, [npm, '--prefix', runtimeDir, '--cache', path.join(DATA_HOME, 'npm-cache'), 'install', '--no-audit', '--no-fund', '--ignore-scripts', '--save-exact', 'electron@44.3.0'], { stdio: 'inherit', windowsHide: true });
 if (result.status !== 0) process.exit(result.status || 1);
-result = spawnSync(process.execPath, [path.join(runtimeDir, 'node_modules', 'electron', 'install.js')], { stdio: 'inherit', windowsHide: true });
+const downloadEnv = { ...process.env };
+if (!downloadEnv.ELECTRON_GET_USE_PROXY && ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy'].some(key => downloadEnv[key])) {
+  downloadEnv.ELECTRON_GET_USE_PROXY = 'true';
+}
+result = spawnSync(process.execPath, [path.join(runtimeDir, 'node_modules', 'electron', 'install.js')], { stdio: 'inherit', windowsHide: true, env: downloadEnv });
 if (result.status !== 0) process.exit(result.status || 1);
 process.stdout.write('桌面组件安装完成。可以启动桌面挂件。\n');

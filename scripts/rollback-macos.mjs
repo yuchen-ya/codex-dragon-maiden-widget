@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DATA_HOME } from '../runtime/paths.mjs';
+import { restoreMacLaunchAgent } from './macos-backup.mjs';
 if (process.platform !== 'darwin') throw new Error('This rollback is only for macOS');
 const receiptFile = process.argv[2] || path.join(DATA_HOME, 'macos-rollback-receipt.json');
 const receipt = JSON.parse(fs.readFileSync(receiptFile, 'utf8'));
@@ -18,7 +19,7 @@ if (run(['print', service], true).status === 0) {
 }
 if (!receipt.hadInstall) {
  fs.writeFileSync(configFile, JSON.stringify({ ...current, enabled: false }, null, 2));
- run(['disable', service]);
+ restoreMacLaunchAgent({ receipt, current, domain, run });
  process.stdout.write('No previous installation: automatic following disabled. All settings and usage records retained.\n');
 } else {
  const previous = receipt.previous;
@@ -30,12 +31,6 @@ if (!receipt.hadInstall) {
  }
  const probe = path.join(receipt.backupDir, 'window-probe');
  if (previous.probePath && fs.existsSync(probe)) { fs.copyFileSync(probe, previous.probePath); fs.chmodSync(previous.probePath, 0o755); }
- const plist = path.join(receipt.backupDir, 'LaunchAgent.plist');
- if (!fs.existsSync(plist)) throw new Error('Previous LaunchAgent backup is missing');
- fs.copyFileSync(plist, receipt.plistPath);
- if (previous.enabled !== false) {
-  const oldService = domain + '/' + previous.label;
-  run(['enable', oldService]); run(['bootstrap', domain, receipt.plistPath]); run(['kickstart', oldService]);
- }
+ restoreMacLaunchAgent({ receipt, current, domain, run });
  process.stdout.write('Previous operational configuration restored. Latest balance history, token records, settings and custom assets retained.\n');
 }

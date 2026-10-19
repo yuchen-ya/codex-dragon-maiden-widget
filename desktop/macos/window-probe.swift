@@ -6,6 +6,7 @@ import Foundation
 struct Options {
     var bundleIDs: Set<String>
     var appPath: String?
+    var companionBundleID: String
     var intervalMilliseconds = 16
     var once = false
 }
@@ -39,6 +40,7 @@ func parseOptions() -> Options {
     return Options(
         bundleIDs: Set(identifiers.filter { !$0.isEmpty }),
         appPath: optionValues("--app-path").last ?? environment["WHALE_CODEX_APP_PATH"],
+        companionBundleID: optionValues("--companion-bundle-id").last ?? "com.codex-dragon-maiden-widget.codex.desktop",
         intervalMilliseconds: max(8, interval),
         once: CommandLine.arguments.contains("--once")
     )
@@ -53,9 +55,6 @@ func expectedApplicationPaths(_ options: Options) -> Set<String> {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
             paths.insert(url.standardizedFileURL.path)
         }
-    }
-    if options.bundleIDs.contains("com.openai.codex") {
-        paths.insert("/Applications/ChatGPT.app")
     }
     return paths
 }
@@ -82,8 +81,9 @@ func matchingProcessIDs(_ options: Options) -> [pid_t] {
         if expectedPaths.contains(where: { executable.hasPrefix($0 + "/Contents/MacOS/") }) {
             return true
         }
-        return options.bundleIDs.contains("com.openai.codex")
-            && executable.contains("/ChatGPT.app/Contents/MacOS/")
+        // An explicitly selected app must not also attach to an unrelated
+        // ChatGPT installation just because of its filename.
+        return false
     }
 }
 
@@ -156,12 +156,28 @@ while true {
         }
 
         let hostAlive = !processIDs.isEmpty
-        let visible = hostAlive && window != nil
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        // A floating macOS overlay has no native owner window. Keep it behind
+        // unrelated applications by hiding in follow mode when they activate.
+        // Clicking our pet or opening its settings must keep it visible.
+        let foreground = processIDs.contains(frontmost?.processIdentifier ?? 0)
+            || frontmost?.bundleIdentifier == options.companionBundleID
+        let visible = hostAlive && window != nil && foreground
         let bounds = window?.bounds ?? lastBounds
-        let scale = window.flatMap { _ in NSScreen.main?.backingScaleFactor } ?? NSScreen.main?.backingScaleFactor ?? 1
+        let primaryTop = NSScreen.screens.first?.frame.maxY ?? 0
+        let cocoaBounds = CGRect(x: bounds.minX, y: primaryTop - bounds.maxY, width: bounds.width, height: bounds.height)
+        let display = NSScreen.screens.max {
+            let a = $0.frame.intersection(cocoaBounds), b = $1.frame.intersection(cocoaBounds)
+            return (a.isNull ? 0 : a.width * a.height) < (b.isNull ? 0 : b.width * b.height)
+        }
+        let scale = display?.backingScaleFactor ?? 1
+        let ownerPID = window?.ownerPID ?? processIDs.first ?? 0
+        let hostApplication = NSRunningApplication(processIdentifier: ownerPID)
+        let launchTime = hostApplication?.launchDate?.timeIntervalSince1970 ?? 0
         var state: [String: Any] = [
             "hostAlive": hostAlive,
-            "hostPid": window?.ownerPID ?? lastOwnerPID,
+            "hostPid": hostAlive ? ownerPID : lastOwnerPID,
+            "hostSession": hostAlive ? "\(ownerPID):\(launchTime)" : "",
             "window": String(window?.windowNumber ?? lastWindowNumber),
             "visible": visible,
             "attached": visible,
@@ -174,10 +190,12 @@ while true {
                 "width": Double(bounds.width),
                 "height": Double(bounds.height)
             ],
-            "bundleId": hostAlive ? (options.bundleIDs.first ?? "unknown") : NSNull()
+            "bundleId": hostApplication?.bundleIdentifier as Any? ?? NSNull()
         ]
         if ProcessInfo.processInfo.environment["WHALE_PROBE_DEBUG"] == "1" {
             state["processIds"] = processIDs
+            state["foregroundPid"] = frontmost?.processIdentifier ?? 0
+            state["foregroundBundleId"] = frontmost?.bundleIdentifier ?? ""
         }
 
         do {
@@ -195,5 +213,7 @@ while true {
     }
 
     if options.once { break }
-    Thread.sleep(forTimeInterval: Double(options.intervalMilliseconds) / 1000.0)
+    // NSWorkspace refreshes application state through run-loop notifications.
+    // Sleeping here leaves frontmostApplication cached at its startup value.
+    RunLoop.current.run(until: Date(timeIntervalSinceNow: Double(options.intervalMilliseconds) / 1000.0))
 }

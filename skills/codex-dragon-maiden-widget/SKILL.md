@@ -3,7 +3,7 @@ name: codex-dragon-maiden-widget
 description: 显示 Codex 小龙娘，读取订阅额度、检查提问和授权提醒及自动跟随状态。仅在用户需要操作小龙娘时使用。
 ---
 
-# Codex 小龙娘 v0.1.1
+# Codex 小龙娘 v0.1.2
 
 优先使用本插件的 `dragon_quota`、`dragon_usage`、`dragon_status`、`dragon_open` 工具。未连接时，从插件根目录运行 `node scripts/control.mjs status`；查询额度使用 `node scripts/control.mjs quota`。报告实际结果，不把未运行的检查称为通过。
 
@@ -17,4 +17,4 @@ description: 显示 Codex 小龙娘，读取订阅额度、检查提问和授权
 
 隐私：不公开登录凭据、IPC token、配置文件、原始会话、个人路径或安装回执。故障排查只报告必要的状态与错误类别。
 
-macOS 保留兼容实现，未进行硬件验收。保留贡献者 [1llysviel 的 PR #128](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128) 署名。
+macOS 使用 `安装 Mac 自动跟随.command` 安装，支持窗口跟随、独立桌面、停用与回滚；已在 Apple Silicon 实机验收。保留贡献者 [1llysviel 的 PR #128](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128) 署名。

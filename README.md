@@ -1,6 +1,8 @@
 # Codex 小龙娘
 
-跟随 Codex 桌面窗口的小龙娘桌宠：查看订阅额度，在需要回答或授权时提醒你。
+支持 **Windows 和 macOS** 的 Codex 小龙娘桌宠：查看订阅额度、切换个性文案，在需要回答或授权时提醒你。随 Codex 窗口自动显示隐藏。
+
+[下载最新版本](https://github.com/yuchen-ya/codex-dragon-maiden-widget/releases/latest) · [Windows 安装](#windows-安装) · [macOS 安装](#macos-安装)
 
 ![第一版](assets/dragon-maiden-bust-v1.png)
 
@@ -42,7 +44,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-package.
 
 1. 安装并登录 Codex 桌面端，准备 Node.js 24+（含 npm）。启动器支持终端 PATH、Homebrew、nvm、Volta、mise，也会尝试复用本机可用的 Codex Node 运行时，并跳过低于 24 的版本。
 2. 安装 Xcode Command Line Tools；如尚未安装，运行 `xcode-select --install`，安装完成后再继续。窗口探测组件使用本机 Swift 编译。
-3. 将项目保存在固定目录，双击 **`安装 Mac 自动跟随.command`**。安装器下载 Electron、编译窗口探测组件、配置订阅额度和提醒 Hook，并注册当前用户的 LaunchAgent。首次安装需要联网；下载会使用已配置的 HTTP(S) 代理。
+3. 从 [Releases](https://github.com/yuchen-ya/codex-dragon-maiden-widget/releases/latest) 下载 **`Codex-Dragon-Maiden-v0.1.2.zip`**，完整解压到固定目录，双击 **`安装 Mac 自动跟随.command`**。不要在 ZIP 中直接运行。安装器下载 Electron、编译窗口探测组件、配置订阅额度和提醒 Hook，并注册当前用户的 LaunchAgent。首次安装需要联网；下载会使用已配置的 HTTP(S) 代理。
 4. 在 Codex 的 Hooks 界面审核并信任包含 `interaction-hook.mjs` 的提醒 Hook。
 
 macOS 的个人数据和 Electron 位于 `~/.codex/dragon-maiden-widget`，登录启动项为 `~/Library/LaunchAgents/com.codex-dragon-maiden-widget.codex.plist`。代码直接使用当前项目目录；移动目录后应重新运行安装器。通过 `CODEX_HOME`、`WHALE_HOME` 自定义的数据目录会保存在启动项中。

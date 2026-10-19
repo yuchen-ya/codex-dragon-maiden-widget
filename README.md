@@ -44,7 +44,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-package.
 
 1. 安装并登录 Codex 桌面端，准备 Node.js 24+（含 npm）。启动器支持终端 PATH、Homebrew、nvm、Volta、mise，也会尝试复用本机可用的 Codex Node 运行时，并跳过低于 24 的版本。
 2. 安装 Xcode Command Line Tools；如尚未安装，运行 `xcode-select --install`，安装完成后再继续。窗口探测组件使用本机 Swift 编译。
-3. 从 [Releases](https://github.com/yuchen-ya/codex-dragon-maiden-widget/releases/latest) 下载 **`Codex-Dragon-Maiden-v0.1.2.zip`**，完整解压到固定目录，双击 **`安装 Mac 自动跟随.command`**。不要在 ZIP 中直接运行。安装器下载 Electron、编译窗口探测组件、配置订阅额度和提醒 Hook，并注册当前用户的 LaunchAgent。首次安装需要联网；下载会使用已配置的 HTTP(S) 代理。
+3. 从 [Releases](https://github.com/yuchen-ya/codex-dragon-maiden-widget/releases/latest) 下载 **`Codex-Dragon-Maiden-v0.1.3.zip`**，完整解压到固定目录，双击 **`安装 Mac 自动跟随.command`**。不要在 ZIP 中直接运行。安装器下载 Electron、编译窗口探测组件、配置订阅额度和提醒 Hook，并注册当前用户的 LaunchAgent。首次安装需要联网；下载会使用已配置的 HTTP(S) 代理。
 4. 在 Codex 的 Hooks 界面审核并信任包含 `interaction-hook.mjs` 的提醒 Hook。
 
 macOS 的个人数据和 Electron 位于 `~/.codex/dragon-maiden-widget`，登录启动项为 `~/Library/LaunchAgents/com.codex-dragon-maiden-widget.codex.plist`。代码直接使用当前项目目录；移动目录后应重新运行安装器。通过 `CODEX_HOME`、`WHALE_HOME` 自定义的数据目录会保存在启动项中。
@@ -71,7 +71,7 @@ macOS 的个人数据和 Electron 位于 `~/.codex/dragon-maiden-widget`，登�
 
 额度通过本机 Codex 官方 `account/rateLimits/read` 读取，30 秒缓存；仅显示账户实际返回的额度窗口。查询不会消耗重置卡。本机 token 统计只覆盖本机记录，不等于官方剩余 token。
 
-授权提醒来自 `PermissionRequest` Hook。部分桌面提问工具不触发 Hook，因此复用本机会话读取器识别真实提问及结构化回答；异步提交成功不等于用户已经回答。提醒状态只保存请求标识、类型、时间，不保存问题、答案或工具参数。Hook 不批准、拒绝或修改调用。
+授权提醒来自 `PermissionRequest` Hook，并结合 Hook 的权限模式和本轮会话的审批设置过滤自动审查、无需询问及完全访问模式，避免把自动审批误报为需要你点头。审批设置读取 Hook 提供的本机会话记录，不以全局配置推断当前会话。部分桌面提问工具不触发 Hook，因此复用本机会话读取器识别真实提问及结构化回答；异步提交成功不等于用户已经回答。提醒状态只保存请求标识、类型、时间，不保存问题、答案或工具参数。Hook 不批准、拒绝或修改调用。
 
 等待气泡可点击收起，同一请求刷新后也不重弹。授权状态在工具结果或回合结束时清除，长时间执行的工具可能在执行完成前仍保留气泡。官方机制见 [Hooks 文档](https://learn.chatgpt.com/docs/hooks)。
 
@@ -84,7 +84,7 @@ macOS 的个人数据和 Electron 位于 `~/.codex/dragon-maiden-widget`，登�
 ```powershell
 npm test
 node scripts/check-package.mjs
-python scripts/build-release.py --release-tag v0.1.2
+python scripts/build-release.py --release-tag v0.1.3
 ```
 
 生成的安装包、源码包、校验和与清单位于 `dist/`，不包含 Electron 下载缓存和个人数据。构建脚本不会上传或发布。开发请隔离 `CODEX_HOME` 与 `WHALE_HOME`，见 [贡献指南](AGENTS.md)。

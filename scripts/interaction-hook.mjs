@@ -1,4 +1,5 @@
 import { acceptInteractionHook } from '../runtime/interaction-notices.mjs';
+import { approvalRequiresUser } from '../runtime/approval-context.mjs';
 import { DATA_HOME } from '../runtime/paths.mjs';
 
 const args = process.argv.slice(2);
@@ -9,7 +10,10 @@ try {
     input += chunk;
     if (Buffer.byteLength(input) > 1024 * 1024) throw new Error('Hook input is too large');
   }
-  acceptInteractionHook(args[1] || DATA_HOME, JSON.parse(input));
+  const event = JSON.parse(input);
+  if (event.hook_event_name !== 'PermissionRequest' || await approvalRequiresUser(event)) {
+    acceptInteractionHook(args[1] || DATA_HOME, event);
+  }
   // Empty stdout is deliberate: this hook never approves, denies or rewrites.
 } catch {
   process.stderr.write('小龙娘提醒未能记录本次事件，请检查挂件数据目录。\n');

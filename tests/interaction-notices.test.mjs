@@ -12,6 +12,7 @@ import { interactionHooks } from '../scripts/install-interaction-hooks.mjs';
 import { createDispatcher } from '../runtime/dispatcher.mjs';
 import { SessionParser } from '../runtime/session-monitor.mjs';
 import { WhaleService } from '../runtime/service.mjs';
+import { approvalRequiresUser } from '../runtime/approval-context.mjs';
 
 function directory(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dragon-interaction-'));
@@ -77,6 +78,69 @@ test('the real hook executable leaves stdout empty and writes only an advisory n
   const result = spawnSync(process.execPath, [script, '--data-dir', root], { input: JSON.stringify(approval('PermissionRequest')), encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 0); assert.equal(result.stdout, ''); assert.equal(result.stderr, '');
   assert.equal(readInteractionNotices(root)[0].kind, 'approval');
+});
+
+test('automatic permission modes never create approval notices but still allow questions', t => {
+  const root = directory(t);
+  const script = fileURLToPath(new URL('../scripts/interaction-hook.mjs', import.meta.url));
+  for (const permission_mode of ['dontAsk', 'bypassPermissions']) {
+    for (const event of [approval('PermissionRequest'), question('PreToolUse')]) {
+      const result = spawnSync(process.execPath, [script, '--data-dir', root], {
+        input: JSON.stringify({ ...event, permission_mode }), encoding: 'utf8', windowsHide: true
+      });
+      assert.equal(result.status, 0, result.stderr); assert.equal(result.stdout, '');
+      assert.deepEqual(readInteractionNotices(root).map(item => item.kind), event.hook_event_name === 'PreToolUse' ? ['question'] : []);
+    }
+    acceptInteractionHook(root, question('PostToolUse'));
+  }
+});
+
+test('approval reminders use this turn and thread rather than global or inherited approval settings', async t => {
+  const root = directory(t), transcript_path = path.join(root, 'session.jsonl');
+  const input = { ...approval('PermissionRequest'), transcript_path, permission_mode: 'default' };
+  const meta = { type: 'session_meta', payload: { id: input.session_id } };
+  const context = (turn_id, approval_policy, approvals_reviewer) => ({ type: 'turn_context', payload: { turn_id, approval_policy, approvals_reviewer } });
+  const write = records => fs.writeFileSync(transcript_path, records.map(record => JSON.stringify(record)).join('\n') + '\n');
+  write([meta, context('old-turn', 'on-request', 'user'), context(input.turn_id, 'on-request', 'auto_review')]);
+  assert.equal(await approvalRequiresUser(input), false, 'automatic review is not a human prompt');
+  write([meta, context('old-turn', 'on-request', 'auto_review'), context(input.turn_id, 'on-request', 'user')]);
+  assert.equal(await approvalRequiresUser(input), true, 'manual review still notifies after an older automatic turn');
+  write([meta, context(input.turn_id, 'never', 'user')]);
+  assert.equal(await approvalRequiresUser(input), false, 'full access must not be confused with manual review');
+  write([meta, context(input.turn_id, 'on-request', 'auto_review'), {
+    type: 'event_msg', payload: { type: 'thread_settings_applied', thread_id: input.session_id,
+      thread_settings: { approval_policy: 'on-request', approvals_reviewer: 'user' } }
+  }]);
+  fs.appendFileSync(transcript_path, '{"type":"turn_context","payload":');
+  assert.equal(await approvalRequiresUser(input), true, 'applied settings take effect and a partial tail is retried later');
+  write([{ type: 'session_meta', payload: { id: 'other-thread' } }, context(input.turn_id, 'never', 'user')]);
+  assert.equal(await approvalRequiresUser(input), true, 'a different thread cannot suppress this approval');
+});
+
+test('real approval hook suppresses automatic review before any tool result and preserves manual reminders', t => {
+  const root = directory(t), transcript_path = path.join(root, 'session.jsonl');
+  const script = fileURLToPath(new URL('../scripts/interaction-hook.mjs', import.meta.url));
+  const input = { ...approval('PermissionRequest'), transcript_path, permission_mode: 'default' };
+  for (const approvals_reviewer of ['auto_review', 'user']) {
+    fs.writeFileSync(transcript_path, [
+      { type: 'session_meta', payload: { id: input.session_id } },
+      { type: 'turn_context', payload: { turn_id: input.turn_id, approval_policy: 'on-request', approvals_reviewer } }
+    ].map(record => JSON.stringify(record)).join('\n') + '\n');
+    const result = spawnSync(process.execPath, [script, '--data-dir', root], { input: JSON.stringify(input), encoding: 'utf8', windowsHide: true });
+    assert.equal(result.status, 0, result.stderr); assert.equal(result.stdout, ''); assert.equal(result.stderr, '');
+    assert.equal(readInteractionNotices(root).length, approvals_reviewer === 'user' ? 1 : 0);
+    assert.ok(!JSON.stringify(readInteractionNotices(root)).includes('PRIVATE'));
+  }
+});
+
+test('unreadable approval context reports a hook error without emitting an unverified reminder or private path', t => {
+  const root = directory(t), script = fileURLToPath(new URL('../scripts/interaction-hook.mjs', import.meta.url));
+  const result = spawnSync(process.execPath, [script, '--data-dir', root], {
+    input: JSON.stringify({ ...approval('PermissionRequest'), transcript_path: path.join(root, 'PRIVATE_missing.jsonl') }), encoding: 'utf8', windowsHide: true
+  });
+  assert.equal(result.status, 1); assert.equal(result.stdout, '');
+  assert.match(result.stderr, /小龙娘提醒未能记录/); assert.ok(!result.stderr.includes('PRIVATE'));
+  assert.deepEqual(readInteractionNotices(root), []);
 });
 
 test('hook installation is idempotent and uninstall preserves unrelated hooks', t => {

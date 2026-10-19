@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import vm from 'node:vm';
 const source = await fs.readFile(new URL('../desktop/ui/account-view.js', import.meta.url), 'utf8');
 const exported = { module: { exports: {} } }; vm.runInNewContext(source, exported);
-const { windowText, tokenText, noticeText, quotaLabel } = exported.module.exports;
+const { windowText, tokenText, turnBubbleModules, quotaLabel } = exported.module.exports;
 
 test('quota periods remain distinct regardless of incoming label',()=>{
   assert.equal(quotaLabel({windowDurationMins:300,label:'primary'}),'5 小时额度');
@@ -20,10 +20,16 @@ test('missing snapshot values never become zero quota or tokens', () => {
   assert.match(windowText({ usedPercent: 25.5, stale: true }), /已用 25.5% · 剩余 74.5%（快照已过期）/);
   assert.equal(tokenText(0), '0 token');
 });
-test('subscription failure consumption displays tokens without API money or fun failure text', () => {
-  assert.equal(noticeText({ completionKind: 'failed', tokens: 10, amount: 5 }), '本轮本机已观测：10 token');
-  assert.equal(noticeText({ completionKind: 'failed', failureKind: 'high-demand' }), '挤不进去...');
-  assert.equal(noticeText({ completionKind: 'completed', tokens: 10, amount: 5 }), '本轮本机已观测：10 token');
+test('subscription turn bubbles emphasize compact K/M token usage without presenting API money', () => {
+  const modules = turnBubbleModules({ completionKind: 'success', tokens: 2299061, amount: 5 });
+  assert.deepEqual(Array.from(modules, item => item.text), ['上一轮对话用量', '2.30M', '本机记录 · token']);
+  assert.ok(modules[1].size > modules[0].size && modules[0].size > modules[2].size);
+  assert.equal(turnBubbleModules({ completionKind: 'failed', tokens: 10 })[0].text, '本轮未完成 · 用量');
+  assert.equal(turnBubbleModules({ completionKind: 'cancelled', tokens: 0 })[1].text, '0.00K');
+  assert.equal(turnBubbleModules({ tokens: 12480 })[1].text, '12.48K');
+  assert.equal(turnBubbleModules({ tokens: 1000000 })[1].text, '1.00M');
+  assert.equal(turnBubbleModules({ completionKind: 'failed', failureKind: 'high-demand' })[0].text, '挤不进去...');
+  assert.equal(turnBubbleModules({ tokens: null })[1].text, '暂无记录');
 });
 function runtime(fetch) {
   const storage = new Map(); const events = [];
@@ -31,17 +37,11 @@ function runtime(fetch) {
   vm.runInNewContext(source, context);
   return { api: context.window.WhaleAccountView, storage, events, window:context.window };
 }
-test('subscription completion and cancellation report tokens without an open card or API money',async()=>{
+test('subscription turn modules are available without an open card',async()=>{
   const r=runtime(async()=>({ok:true,json:async()=>({mode:'subscription'})}));
-  const messages=[];r.window.whaleToast=message=>messages.push(message);
   assert.equal(r.api.mode,'subscription');
-  r.api.notice({completionKind:'success',tokens:12,amount:100,notify:false});assert.equal(messages.length,0);
   await r.api.setMode('subscription');
-  r.api.notice({completionKind:'success',tokens:12480,amount:100,currency:'USD'});
-  r.api.notice({completionKind:'cancelled',tokens:12,amount:10});
-  r.api.notice({completionKind:'success',tokens:12,notify:false});
-  assert.equal(messages.length,2);assert.match(messages[0],/12,480 token/);assert.match(messages[1],/12 token/);
-  assert.ok(messages.every(m=>!/[\$¥]|USD|API/.test(m)));
+  assert.equal(r.api.turnBubbleModules({completionKind:'success',tokens:12480,amount:100})[1].text,'12.48K');
 });
 test('a rejected save preserves mode and does not emit false switch events', async () => {
   for (const fetch of [async () => ({ ok: false }), async () => ({ ok: true, json: async () => ({ mode: 'api' }) }), async () => { throw Error('offline'); }]) {

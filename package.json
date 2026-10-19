@@ -1,6 +1,6 @@
 {
   "name": "codex-dragon-maiden-widget",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Codex 小龙娘：订阅额度、提问与授权提醒，随 Codex 窗口自动显示隐藏",
   "type": "module",
   "private": true,
@@ -16,9 +16,9 @@
     "uninstall:mac": "node scripts/uninstall-macos.mjs",
     "probe:mac": "node scripts/probe-macos.mjs"
   },
-  "codexBuild": "dragon-maiden-20261019",
-  "distributionName": "Codex-Dragon-Maiden-v0.1.0",
-  "releaseTag": "v0.1.0",
+  "codexBuild": "dragon-maiden-20261019-v0.1.1",
+  "distributionName": "Codex-Dragon-Maiden-v0.1.1",
+  "releaseTag": "v0.1.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yuchen-ya/codex-dragon-maiden-widget.git"

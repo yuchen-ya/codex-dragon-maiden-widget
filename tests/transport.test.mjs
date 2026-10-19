@@ -89,6 +89,7 @@ test('all original built-in images, animation, sound and script routes work', as
     ['/dsh-whale/sound/press.mp3?set=duck', 'audio/mpeg'], ['/dsh-whale/sound/release.mp3?set=fx1', 'audio/mpeg'],
     ['/dsh-whale/audio-fragment.wav?id=ya1', 'audio/mpeg'], ['/dsh-whale/bubble-img.png?id=bimg_petpet', 'image/gif'],
     ['/dsh-whale/bubble-img.png?id=bimg_yue_money', 'image/gif'], ['/dsh-whale/widget.js', 'application/javascript'],
+    ['/dsh-whale/bubble-img.png?id=bimg_dragon_petpet', 'image/gif'],
   ];
   for (const [route, contentType] of cases) {
     const response = await request(route); assert.equal(response.status, 200, route);

@@ -13,7 +13,7 @@ assert.ok(begin >= 0 && finish > begin && startNotice >= 0 && endNotice > startN
 function fixture({ mode = 'api', kind = 'success', enabled = true, sound = true, slots = [] } = {}) {
   const calls = [], value = { completionKind: kind, failureKind: kind === 'failed' ? 'high-demand' : null };
   const context = {
-    window: { WhaleFeedback: { play: (...args) => calls.push(['sound', ...args]) }, WhaleAccountView: { mode, notice: () => calls.push(['subscription']) }, dispatchEvent() {} },
+    window: { WhaleFeedback: { play: (...args) => calls.push(['sound', ...args]) }, WhaleAccountView: { mode }, dispatchEvent() {} },
     CustomEvent: class {}, WhaleTurnNotice: { snapshot: () => value }, d: {}, state: {}, turnCostOn: true,
     usageSet: { taskEnd: { on: enabled, sel: 'grp:duck' } }, soundOn: sound, soundVol: .3,
     audioGroupSlotEmpty: (_, slot) => slots.includes(slot), showCostBubble: () => calls.push(['bubble']),
@@ -23,13 +23,13 @@ function fixture({ mode = 'api', kind = 'success', enabled = true, sound = true,
   return calls;
 }
 
-test('API and subscription successes use the same complete task group before their display branches', () => {
+test('API and subscription successes play the complete task group before queuing their bubble', () => {
   for (const mode of ['api', 'subscription']) {
     const calls = fixture({ mode });
     assert.equal(calls[0][0], 'sound'); assert.equal(calls[0][1], 'success');
     assert.deepEqual(Array.from(calls[0][2]), ['/dsh-whale/sound/press.mp3?set=duck', '/dsh-whale/sound/release.mp3?set=duck']);
     assert.equal(calls[0][3], .3);
-    assert.equal(calls[1][0], mode === 'api' ? 'bubble' : 'subscription');
+    assert.equal(calls[1][0], 'bubble');
   }
 });
 

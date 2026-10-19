@@ -6,6 +6,8 @@
 
 这是非官方二创，不宣称拥有参考角色或相关商标权。代码的 MIT 许可不自动涵盖角色形象与媒体内容。
 
+`assets/dragon-maiden-petpet.gif` 将第一版原图与上游 `bubble-petpet.gif` 中逐帧提取的手掌合成，保留手掌的模糊质感与原动作速度。此文件为改编素材，原手掌素材的权利归属不变。
+
 ## 上游媒体与依赖
 
 现有气泡 GIF 与按压音频来自上游项目，按原媒体条款 as-is 分发，保留原权利归属；不授予额外的独立提取、商业使用或再许可权。详见 [来源记录](../PROVENANCE.md)、[第三方声明](../THIRD_PARTY_NOTICES.md) 和 [上游项目](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。

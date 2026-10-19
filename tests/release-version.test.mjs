@@ -6,10 +6,10 @@ import { validateReleaseMetadata,verifyReleaseMetadata } from '../scripts/releas
 
 const record=()=>({name:'codex-dragon-maiden-widget',version:VERSION});
 const fixture=()=>({plugin:record(),packageMetadata:record(),lock:{...record(),packages:{'':record()}},runtimeVersion:VERSION});
-test('public release metadata, runtime and skill identify the same 0.1.0 candidate',()=>{
-  assert.equal(VERSION,'0.1.0');assert.equal(verifyReleaseMetadata(),VERSION);
+test('public release metadata, runtime and skill identify the same 0.1.1 candidate',()=>{
+  assert.equal(VERSION,'0.1.1');assert.equal(verifyReleaseMetadata(),VERSION);
   const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
-  assert.equal(pkg.name,'codex-dragon-maiden-widget');assert.equal(pkg.codexBuild,'dragon-maiden-20261019');
+  assert.equal(pkg.name,'codex-dragon-maiden-widget');assert.equal(pkg.codexBuild,'dragon-maiden-20261019-v0.1.1');
   const skill=fs.readFileSync(new URL('../skills/codex-dragon-maiden-widget/SKILL.md',import.meta.url),'utf8');
   assert.ok(skill.includes('# Codex 小龙娘 v'+VERSION));
 });

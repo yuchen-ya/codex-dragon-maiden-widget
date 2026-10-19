@@ -3,6 +3,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { spawn } from 'node:child_process';
 import { quotaWindows } from './insights-worker.mjs';
+import { VERSION } from './paths.mjs';
 
 export class CodexQuotaError extends Error {}
 
@@ -84,7 +85,7 @@ export function readCodexQuota({ codexHome, signal, timeoutMs = 12000, spawnImpl
       }
     });
     send({ id: 1, method: 'initialize', params: {
-      clientInfo: { name: 'codex_dragon_maiden', title: 'Codex Dragon Maiden', version: '0.1.0' },
+      clientInfo: { name: 'codex_dragon_maiden', title: 'Codex Dragon Maiden', version: VERSION },
     } });
   });
 }

@@ -6,8 +6,9 @@ const scenarios = [
   { name: 'six-lines', modules: Array.from({length:6}, (_, i) => ({ type:'text', text:'第' + (i+1) + '行：完整文字必须留在气泡内部', size:10 })) },
   { name: 'long-text', modules: [{type:'text',text:'完整内容'+ 'abcdefghijklmnopqrstuv测试长文字'.repeat(6),size:9}] },
   { name: 'image-text', modules: [{type:'image',imgId:'bimg_yue_money',imgScale:0.8},{type:'text',text:'图片与完整提示同时展示',size:10},{type:'text',text:'点击气泡可继续下一条',size:7}] },
+  { name: 'dragon-petpet', modules: [{type:'image',imgId:'bimg_dragon_petpet'}] },
   { name: 'budget-alert', modules: [{type:'text',text:'今天已观测用量超过',size:6},{type:'text',text:'USD 123456.78',size:7},{type:'text',text:'账户期间扣费可能包含多个对话',size:6}] },
-  { name: 'cost', cost: {id:'fixture:layout',conversationRef:'1234abcd',outcome:'failed',amount:12345678.12,costState:'estimated',source:'configured-pricing-estimate',tokens:999999} },
+  { name: 'cost', cost: {id:'fixture:layout',conversationRef:'1234abcd',outcome:'completed',amount:null,costState:'unknown',source:'token-only',tokens:2299061} },
 ];
 const edgeScenarios = [
   {name:'custom-font-size50',modules:Array.from({length:6},(_,i)=>({type:'text',text:'超大字号 '+(i+1)+'：保留所有文字',size:50,fontFamily:'Courier New, monospace'}))},
@@ -15,7 +16,8 @@ const edgeScenarios = [
 ];
 export async function verifyDesktop({app,window,screen,setHost,errors}) {
   const output=process.env.WHALE_DESKTOP_VERIFY_DIR, samples=[];
-  const edgeOnly=process.env.WHALE_LAYOUT_EDGE_ONLY==='1', activeScenarios=edgeOnly?edgeScenarios:scenarios;
+  const edgeOnly=process.env.WHALE_LAYOUT_EDGE_ONLY==='1';
+  const activeScenarios=(edgeOnly?edgeScenarios:scenarios).filter(item=>!process.env.WHALE_LAYOUT_SCENARIO||item.name===process.env.WHALE_LAYOUT_SCENARIO);
   const ev=code=>window.webContents.executeJavaScript(code);
   const wait=async code=>{for(let i=0;i<80;i++){if(await ev(code))return;await delay(60);}throw Error('Timed out: '+code);};
   try {

@@ -8307,6 +8307,10 @@
     }
     function bubbleRenderCost(amount, notice) {
       notice = notice || WhaleTurnNotice.snapshot({ amount: amount }, state.currency);
+      if (window.WhaleAccountView?.mode === 'subscription') {
+        bubbleRenderModules(window.WhaleAccountView.turnBubbleModules(notice));
+        return;
+      }
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
       var completionLabel = notice.completionKind === 'failed' ? '失败' : notice.completionKind === 'cancelled' ? '取消' : '完成';
@@ -8383,6 +8387,7 @@
           bubbleRenderRandom(lines);
         }, BUBBLE_MS);
       } else if (item.kind === 'custom') {
+        if (item.modules && item.modules.some(function (module) { return module.roleQuotes; }) && bubbleTryPetpet()) return;
         sceneOpen('custom', function () {
           bubbleRenderModules(item.modules || []);
         }, BUBBLE_MS);
@@ -8827,10 +8832,33 @@
         bubbleRowsTo(tb, mods || []);
       } catch (err) {}
     }
+    var petpetClickCount = 0;
+    var petpetLastClickAt = -Infinity;
+    var petpetLastShownAt = -Infinity;
+    function bubbleTryPetpet() {
+      var now = Date.now();
+      var boosted = petpetClickCount >= 4 && now - petpetLastClickAt <= 2000;
+      if (now - petpetLastShownAt < 20000) return false;
+      if (Math.random() >= (boosted ? 0.6 : 0.1)) return false;
+      petpetLastShownAt = now;
+      petpetClickCount = 0;
+      bubbleRoundOn = true;
+      bubbleSeqIdx = bubbleSeq.length;
+      sceneOpen('custom', function () {
+        bubbleRenderModules([{ type: 'image', imgId: 'bimg_dragon_petpet' }]);
+      }, BUBBLE_MS);
+      return true;
+    }
     function whaleClick() {
       try {
         if (!bubbleOn) return;
         if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert' || bubbleScene.kind === 'wait')) return;
+        var subscription = window.WhaleAccountView?.mode === 'subscription';
+        if (subscription) {
+          var now = Date.now();
+          petpetClickCount = now - petpetLastClickAt <= 2000 ? petpetClickCount + 1 : 1;
+          petpetLastClickAt = now;
+        }
         if (!bubbleShown) {
           bubbleRoundOn = true;
           bubbleSeqIdx = 0;
@@ -11620,9 +11648,11 @@
     function showInteractionNotice(notice, hooks) {
       if (!bubbleOn) return false;
       var approval = notice.kind === 'approval';
+      var titleCharacters = Array.from(notice.threadTitle || '未命名会话');
+      var sessionCaption = '[' + (titleCharacters.length > 6 ? titleCharacters.slice(0, 5).join('') + '…' : titleCharacters.join('')) + ']';
       var modules = [
-        { type: 'text', text: approval ? '这一步要你点头' : '我在等你回答', size: 18, bold: true, rgb: 'indigo' },
-        { type: 'text', text: approval ? '回 Codex 确认一下～' : '回 Codex 看一下～', size: 6 }
+        { type: 'text', text: approval ? '这一步要你点头' : '老大，我有个问题', size: 18, bold: true, rgb: 'indigo' },
+        { type: 'text', text: sessionCaption, size: 6 }
       ];
       sceneOpen('wait', function () { bubbleRenderModules(modules); }, 0, {
         kind: 'wait', noticeId: notice.id, isValid: hooks.valid,
@@ -11697,7 +11727,6 @@
           window.dispatchEvent(new CustomEvent('whale-turn-notice', {detail:notice}));
           if (notice.completionKind === 'success') playTaskEndSound();
           else if ((notice.completionKind === 'cancelled' || notice.failureKind === 'high-demand') && usageSet && usageSet.taskEnd && usageSet.taskEnd.on && soundOn && typeof window !== 'undefined' && window.WhaleFeedback) window.WhaleFeedback.play(notice.completionKind, '', soundVol);
-          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { if(turnCostOn)window.WhaleAccountView.notice(notice); return; }
           showCostBubble(notice.amount, notice);
         }).catch(function () {}).finally(function () { lastCostPending = false; });
       } catch (err) { lastCostPending = false; }

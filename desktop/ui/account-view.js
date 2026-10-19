@@ -8,10 +8,16 @@
   }
   function tokenText(value) { const n = number(value); return n === null ? '暂无记录' : n.toLocaleString() + ' token'; }
   function quotaLabel(item) { return item.windowDurationMins === 300 ? '5 小时额度' : item.windowDurationMins === 10080 ? '每周额度' : item.label || '额度窗口'; }
-  function noticeText(value) {
-    if (!value || value.notify === false) return '';
-    if (value.failureKind === 'high-demand') return '挤不进去...';
-    return number(value.tokens) === null ? '本轮 token 暂无记录' : '本轮本机已观测：' + tokenText(value.tokens);
+  function turnBubbleModules(notice) {
+    if (notice.failureKind === 'high-demand') return [{ type: 'text', text: '挤不进去...', size: 18, bold: true, rgb: 'indigo' }];
+    const tokens = number(notice.tokens);
+    const usage = tokens === null ? '暂无记录' : tokens >= 1000000 ? (tokens / 1000000).toFixed(2) + 'M' : (tokens / 1000).toFixed(2) + 'K';
+    const label = notice.completionKind === 'cancelled' ? '本轮已取消 · 用量' : notice.completionKind === 'failed' ? '本轮未完成 · 用量' : '上一轮对话用量';
+    return [
+      { type: 'text', text: label, size: 7, bold: true, rgb: 'indigo' },
+      { type: 'text', text: usage, size: 22, bold: true, color: '#e0433f' },
+      { type: 'text', text: '本机记录 · token', size: 4, color: '#ffffff', bg: '#536ba9' }
+    ];
   }
   function quotaBubbleModules(subscription) {
     const row = (text, size, rgb) => ({ type: 'text', text, size, bold: true, rgb: rgb || '' });
@@ -27,7 +33,7 @@
       : '重置时间未知';
     return [row(quotaLabel(item), 8), row(remaining(item), 18, 'indigo'), row(item.stale ? '快照已过期，点角色刷新' : resetText, 4)];
   }
-  if (typeof module !== 'undefined' && module.exports) module.exports = { validMode, windowText, tokenText, noticeText, quotaLabel, quotaBubbleModules };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { validMode, windowText, tokenText, turnBubbleModules, quotaLabel, quotaBubbleModules };
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const key = 'dshw-account-view';
   let switching = false, modeRevision = 0, subscription = null, pending = null;
@@ -68,10 +74,6 @@
     })().finally(() => { pending = null; });
     return pending;
   }
-  function notice(value) {
-    const message = noticeText(value);
-    if (message) window.whaleToast?.(message);
-  }
   function text(parent, tag, value) { const el = document.createElement(tag); el.textContent = value; parent.append(el); return el; }
   function init() {
     const menu = document.querySelector('.dshwv-menu');
@@ -104,7 +106,7 @@
   }
   window.WhaleAccountView = {
     get mode() { return 'subscription'; }, get subscription() { return subscription; },
-    bubbleModules: () => quotaBubbleModules(subscription), refresh, notice, setMode, quotaLabel
+    bubbleModules: () => quotaBubbleModules(subscription), turnBubbleModules, refresh, setMode, quotaLabel
   };
   if (document.readyState !== 'complete') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();
 })();

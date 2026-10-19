@@ -51,7 +51,7 @@ test('policy refresh is deduplicated and malformed responses leave the previous 
 });
 
 test('installed PNG and GIF assets have matching frontend and backend metadata', () => {
-  for (const name of ['dragon-maiden-bust-v1.png', 'rua.gif', 'bubble-petpet.gif', 'bubble-yue-money.gif']) {
+  for (const name of ['dragon-maiden-bust-v1.png', 'dragon-maiden-petpet.gif', 'rua.gif', 'bubble-petpet.gif', 'bubble-yue-money.gif']) {
     const bytes = fs.readFileSync(new URL('../assets/' + name, import.meta.url));
     const front = api.inspectImage(bytes), back = validateImage(bytes);
     for (const key of ['width', 'height', 'format', 'mime', 'frames']) assert.equal(front[key], back[key], name + ' ' + key);

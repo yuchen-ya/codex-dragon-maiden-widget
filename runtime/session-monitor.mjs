@@ -36,8 +36,8 @@ export class SessionParser {
     if (this.active) {
       if (!this.active.recoverable) { this.active.byModel = {}; this.active.partial = true; }
       this.onStart({ ...this.active });
-      for (const input of this.questions.values()) this.onInteraction(input);
     }
+    for (const input of this.questions.values()) this.onInteraction(input);
   }
   accept(line) {
     if (this.skipHistory > 0) { this.skipHistory--; return; }
@@ -119,7 +119,9 @@ export class SessionParser {
       notify: !this.priming && outcome === 'completed' && !this.active.isSubagent,
       failureKind: outcome === 'failed' && this.active.failureKind === 'high-demand' ? 'high-demand' : null,
       statusNotify: !this.priming && ['aborted','failed','interrupted','superseded'].includes(outcome) && !this.active.isSubagent };
-    this.questions.clear();
+    for (const [callId, input] of this.questions) {
+      if (input.turn_id === completed.turnId && (outcome !== 'completed' || !input.tool_name.endsWith('_async'))) this.resolveQuestion(callId);
+    }
     this.onInteraction({ session_id: this.id, turn_id: completed.turnId, hook_event_name: 'Stop' });
     this.active = null; this.completed.add(completed.turnId);
     this.recentEnds.set(completed.turnId, completed);

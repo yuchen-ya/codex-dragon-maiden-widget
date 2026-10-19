@@ -48,6 +48,19 @@ test('failed first frame releases queue ownership and automatically opens the fo
   assert.equal(h.box.bubbleScene.pending, false);
   assert.equal(h.box.whaleSysQueue.length, 0);
 });
+
+test('turn usage waits behind an interaction reminder and opens after it closes', () => {
+  const h = harness();
+  h.box.bubbleScene = { kind: 'wait', pending: false };
+  h.box.bubbleShown = true;
+  h.enqueue(12);
+  assert.deepEqual(h.rendered, []);
+  assert.equal(h.box.whaleSysQueue.length, 1);
+  h.box.hideUsageAlertBubble();
+  assert.deepEqual(h.rendered, [12]);
+  assert.equal(h.box.bubbleScene.kind, 'cost');
+  assert.equal(h.box.bubbleScene.ttlMs, 5000);
+});
 test('expired cost closes when the only queued account batch is invalid', async () => {
  const h=harness();let discarded=0;h.enqueue(1);h.renders[0].resolve(true);await flush();
  h.box.whaleSysPush({kind:'cost',amount:2,isValid:()=>false,onDiscard:()=>discarded++});

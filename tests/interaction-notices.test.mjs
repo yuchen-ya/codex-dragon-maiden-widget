@@ -11,6 +11,7 @@ import { installInteractionHooks } from '../scripts/install-interaction-hooks.mj
 import { interactionHooks } from '../scripts/install-interaction-hooks.mjs';
 import { createDispatcher } from '../runtime/dispatcher.mjs';
 import { SessionParser } from '../runtime/session-monitor.mjs';
+import { WhaleService } from '../runtime/service.mjs';
 
 function directory(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dragon-interaction-'));
@@ -46,6 +47,18 @@ test('approval hook survives repeated polls and resolves after the corresponding
   assert.deepEqual(readInteractionNotices(root), []);
   acceptInteractionHook(root, approval('PermissionRequest'));
   assert.notEqual(readInteractionNotices(root)[0].id, id, 'a new request after resolution can notify again');
+});
+
+test('native async PostToolUse acceptance cannot erase a question created by the transcript reader', t => {
+  const root = directory(t), input = { ...question('PreToolUse'), tool_name: 'functions.request_user_input_async' };
+  for (const tool_response of [{ accepted: true }, '{"accepted":true}']) {
+    acceptInteractionHook(root, input);
+    const id = readInteractionNotices(root)[0].id;
+    acceptInteractionHook(root, { ...input, hook_event_name: 'PostToolUse', tool_response });
+    assert.equal(readInteractionNotices(root)[0].id, id);
+    acceptInteractionHook(root, { ...input, hook_event_name: 'PostToolUse' });
+    assert.deepEqual(readInteractionNotices(root), [], 'the transcript can still resolve the actual answer');
+  }
 });
 
 test('turn cancellation clears only that turn, and session cleanup handles denied requests', t => {
@@ -110,6 +123,41 @@ test('real desktop async accepted output keeps the question pending until every 
   assert.ok(!JSON.stringify(h.events).includes('PRIVATE'));
 });
 
+test('async question stays pending across assistant completion, Stop and reply-turn startup until answered', t => {
+  const root = directory(t), h = transcript();
+  h.parser.onInteraction = input => acceptInteractionHook(root, input);
+  h.parser.accept(h.call('request_user_input_async', 2));
+  h.parser.accept({ type: 'response_item', payload: { type: 'function_call_output', call_id: 'call-a', output: '{"accepted":true}' } });
+  const id = readInteractionNotices(root)[0].id;
+  h.parser.accept({ type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-a' } });
+  acceptInteractionHook(root, { hook_event_name: 'Stop', session_id: 'thread-a', turn_id: 'turn-a' });
+  acceptInteractionHook(root, { hook_event_name: 'UserPromptSubmit', session_id: 'thread-a' });
+  h.parser.accept({ type: 'event_msg', payload: { type: 'task_started', turn_id: 'reply-turn' } });
+  assert.equal(readInteractionNotices(root)[0].id, id);
+  h.parser.accept(h.reply(0));
+  assert.equal(readInteractionNotices(root)[0].id, id);
+  h.parser.accept(h.reply(1));
+  assert.deepEqual(readInteractionNotices(root), []);
+});
+
+test('restart restores unanswered async questions after a completed turn but never replays answered ones', t => {
+  const root = directory(t), h = transcript();
+  const ended = { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-a' } };
+  h.parser.onInteraction = input => acceptInteractionHook(root, input);
+  h.parser.prime([h.call(), ended]);
+  assert.equal(readInteractionNotices(root).length, 1);
+  const replay = transcript();
+  replay.parser.onInteraction = input => acceptInteractionHook(root, input);
+  replay.parser.prime([replay.call(), ended, replay.reply(0)]);
+  assert.deepEqual(readInteractionNotices(root), []);
+  const cancelled = transcript();
+  cancelled.parser.onInteraction = input => acceptInteractionHook(root, input);
+  cancelled.parser.accept(cancelled.call());
+  assert.equal(readInteractionNotices(root).length, 1);
+  cancelled.parser.accept({ type: 'event_msg', payload: { type: 'task_aborted', turn_id: 'turn-a' } });
+  assert.deepEqual(readInteractionNotices(root), []);
+});
+
 test('synchronous question completion resolves normally and replay emits only genuinely pending questions', () => {
   const h = transcript();
   h.parser.accept(h.call('request_user_input'));
@@ -161,12 +209,23 @@ test('invisible and failed-render notices are not marked as seen before a succes
 });
 
 test('dispatcher serves hook state and reminder script without exposing tool arguments', async t => {
-  const root = directory(t), server = createDispatcher({ dataDir: root, monitor: false, autoRefresh: false });
+  const root = directory(t), service = new WhaleService({ dataDir: root, codexHome: root });
+  const server = createDispatcher({ dataDir: root, service, monitor: false, autoRefresh: false });
   t.after(() => server.close());
   acceptInteractionHook(root, approval('PermissionRequest'));
   const reply = await server.dispatch('/api/interaction-notices');
   assert.equal(reply.status, 200); assert.equal(JSON.parse(reply.body).notices[0].kind, 'approval');
   assert.ok(!reply.body.toString().includes('PRIVATE_COMMAND'));
+  const indexFile = path.join(root, 'session_index.jsonl');
+  fs.writeFileSync(indexFile, [
+    { id: 'thread-b', thread_name: '旧会话名称' },
+    { id: 'unrelated', thread_name: 'PRIVATE_OTHER_THREAD' },
+    { id: 'thread-b', thread_name: '修复提醒气泡' }
+  ].map(item => JSON.stringify(item)).join('\n') + '\n{"id":');
+  const namedReply = await server.dispatch('/api/interaction-notices');
+  assert.equal(JSON.parse(namedReply.body).notices[0].threadTitle, '修复提醒气泡');
+  assert.ok(!namedReply.body.toString().includes('PRIVATE_OTHER_THREAD'));
+  assert.equal(readInteractionNotices(root)[0].threadTitle, undefined, 'titles are read for display, not persisted in hook notices');
   assert.equal((await server.dispatch('/api/interaction-notices', { method: 'POST' })).status, 405);
   assert.equal((await server.dispatch('/interaction-notices.js')).status, 200);
 });

@@ -9,9 +9,54 @@ function productionFunction(name) {
   assert.ok(start >= 0, name);
   return source.slice(start, source.indexOf('\n    }', start) + '\n    }'.length);
 }
+
+test('question reminder shows character wording above a smaller session title and keeps its waiting lifecycle', () => {
+  let rendered, scene;
+  const box = {
+    bubbleOn: true,
+    bubbleRenderModules: modules => { rendered = modules; },
+    sceneOpen: (kind, build, ttl, item) => { scene = { kind, ttl, item }; build(); }
+  };
+  vm.createContext(box);
+  vm.runInContext(productionFunction('showInteractionNotice'), box);
+  const valid = () => true;
+  box.showInteractionNotice({ id: 'q1', kind: 'question', threadTitle: '修复提醒气泡' }, { valid });
+  assert.deepEqual(Array.from(rendered, item => item.text), ['老大，我有个问题', '[修复提醒气泡]']);
+  assert.ok(rendered[0].size > rendered[1].size);
+  assert.equal(scene.kind, 'wait'); assert.equal(scene.ttl, 0); assert.equal(scene.item.isValid, valid);
+  box.showInteractionNotice({ id: 'q2', kind: 'question' }, { valid });
+  assert.equal(rendered[1].text, '[未命名会话]');
+  box.showInteractionNotice({ id: 'q3', kind: 'question', threadTitle: '查找桌面端插件' }, { valid });
+  assert.equal(rendered[1].text, '[查找桌面端…]');
+});
 const exported = { module: { exports: {} } };
 vm.runInNewContext(fs.readFileSync(new URL('../desktop/ui/account-view.js', import.meta.url), 'utf8'), exported);
 const { quotaBubbleModules } = exported.module.exports;
+const turnExport = { module: { exports: {} } };
+vm.runInNewContext(fs.readFileSync(new URL('../desktop/ui/turn-notice.js', import.meta.url), 'utf8'), turnExport);
+
+test('subscription completion enters the character bubble queue once and respects its main switch', async () => {
+  const queued = [];
+  let record = { ok: true, seq: 1, id: 'thread:turn1', turn: 'turn1', ts: 1000, tokens: 2299061, amount: null, outcome: 'completed' };
+  const box = {
+    lastCostPending: false, lastCostSeq: 0, lastCostId: '', lastCostAligned: false, costPollingStartedAt: 0,
+    LAST_TURN_URL: '/last-turn', state: { currency: 'USD' }, WhaleTurnNotice: turnExport.module.exports,
+    window: { WhaleAccountView: { mode: 'subscription' }, dispatchEvent() {} },
+    CustomEvent: class {}, localStorage: { setItem() {} },
+    fetch: async () => ({ json: async () => record }), playTaskEndSound() {},
+    bubbleOn: true, turnCostOn: true, whaleSysPush: item => queued.push(item)
+  };
+  vm.createContext(box);
+  vm.runInContext(['pollLastTurn', 'showCostBubble'].map(productionFunction).join('\n'), box);
+  box.pollLastTurn(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(queued.length, 1); assert.equal(queued[0].kind, 'cost'); assert.equal(queued[0].notice.tokens, 2299061);
+  box.pollLastTurn(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(queued.length, 1);
+  box.turnCostOn = false;
+  record = { ...record, seq: 2, id: 'thread:turn2', turn: 'turn2' };
+  box.pollLastTurn(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(queued.length, 1);
+});
 const quoteModule = { module: { exports: {} } };
 vm.runInNewContext(fs.readFileSync(new URL('../desktop/ui/dragon-maiden-quotes.js', import.meta.url), 'utf8'), quoteModule);
 const { quotes, lines } = quoteModule.module.exports;
@@ -36,21 +81,61 @@ test('both returned quota periods fit the same compact scene', () => {
 });
 
 function interaction() {
-  const events = [];
+  const events = [], rendered = [];
+  let now = 1000, random = 0.99;
   const box = {
+    Date: { now: () => now }, Math: { random: () => random },
+    petpetClickCount: 0, petpetLastClickAt: -Infinity, petpetLastShownAt: -Infinity,
     window: { WhaleAccountView: { mode: 'subscription' }, DragonMaidenQuotes: { lines: () => [] } },
     bubbleOn: true, bubbleShown: false, bubbleScene: null, bubbleRoundOn: false, bubbleSeqIdx: 0, BUBBLE_MS: 5000,
-    bubbleRenderDefault() {}, bubbleRenderModules() {},
-    sceneOpen(kind) { events.push(kind); box.bubbleShown = true; box.bubbleScene = { kind }; },
+    bubbleRenderDefault() {}, bubbleRenderModules(modules) { rendered.push(modules); },
+    sceneOpen(kind, build, ttl) { events.push(kind); box.bubbleShown = true; box.bubbleScene = { kind, ttl }; build(); },
     hideBubble() { events.push('close'); box.bubbleShown = false; box.bubbleScene = null; },
     bubbleResetTtl() { events.push('extend'); },
     bubbleIsChoice: () => false
   };
   vm.createContext(box);
-  vm.runInContext(['bubbleDefaultQueue', 'bubbleShowSeqNext', 'whaleClick', 'bubbleNext', 'refreshQuotaBubble'].map(productionFunction).join('\n'), box);
+  vm.runInContext(['bubbleDefaultQueue', 'bubbleShowSeqNext', 'bubbleTryPetpet', 'whaleClick', 'bubbleNext', 'refreshQuotaBubble'].map(productionFunction).join('\n'), box);
   box.bubbleSeq = box.bubbleDefaultQueue();
-  return { box, events };
+  return { box, events, rendered, advance(ms) { now += ms; }, random(value) { random = value; } };
 }
+
+test('random petpet keeps quota first, closes on the next bubble click and observes its cooldown', () => {
+  const h = interaction(); h.random(0.09);
+  h.box.whaleClick(); assert.equal(h.box.bubbleScene.kind, 'normal');
+  h.box.bubbleNext();
+  assert.equal(h.rendered.at(-1)[0].imgId, 'bimg_dragon_petpet');
+  assert.equal(h.box.bubbleScene.ttl, 5000);
+  h.box.bubbleNext(); assert.equal(h.box.bubbleShown, false);
+  h.box.whaleClick(); h.box.bubbleNext();
+  assert.equal(h.rendered.at(-1)[0].roleQuotes, true, 'cooldown still allows ordinary quotes');
+  h.box.bubbleNext(); h.advance(20000);
+  h.box.whaleClick(); h.box.bubbleNext();
+  assert.equal(h.rendered.at(-1)[0].imgId, 'bimg_dragon_petpet');
+});
+
+test('four closely spaced pet clicks only boost the next bubble click and never display petpet directly', () => {
+  const h = interaction(); h.random(0.59);
+  for (let index = 0; index < 4; index++) { h.box.whaleClick(); h.advance(300); }
+  assert.equal(h.rendered.length, 0);
+  assert.equal(h.box.bubbleScene.kind, 'normal');
+  h.box.bubbleNext();
+  assert.equal(h.rendered.at(-1)[0].imgId, 'bimg_dragon_petpet');
+  h.box.bubbleNext(); assert.equal(h.box.bubbleShown, false);
+});
+
+test('a pause resets the click boost and an unsuccessful roll keeps the normal interaction', () => {
+  const h = interaction(); h.random(0.6);
+  for (let index = 0; index < 4; index++) { h.box.whaleClick(); h.advance(300); }
+  assert.equal(h.rendered.length, 0);
+  h.box.bubbleNext();
+  assert.equal(h.rendered.at(-1)[0].roleQuotes, true);
+  h.box.bubbleNext();
+  h.advance(2001); h.random(0.59); h.box.whaleClick();
+  assert.equal(h.box.bubbleScene.kind, 'normal');
+  h.box.bubbleNext();
+  assert.equal(h.rendered.at(-1)[0].roleQuotes, true);
+});
 
 test('subscription pet and bubble clicks follow quota, persona quote, then close', () => {
   const { box, events } = interaction();
@@ -69,8 +154,9 @@ test('disabled bubbles and active notices are respected by pet clicks', () => {
   const { box, events } = interaction();
   box.bubbleOn = false; box.whaleClick();
   box.bubbleOn = true;
-  for (const kind of ['cost', 'alert']) { box.bubbleScene = { kind }; box.whaleClick(); }
+  for (const kind of ['cost', 'alert', 'wait']) { box.bubbleScene = { kind }; box.whaleClick(); }
   assert.deepEqual(events, []);
+  assert.equal(box.petpetClickCount, 0);
 });
 
 test('a quota response can update only its still-open quota scene once', () => {

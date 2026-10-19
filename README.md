@@ -8,7 +8,9 @@
 
 - 点击角色查看 Codex 官方订阅额度，再点气泡切换文案、收起；不需要 API 密钥。
 - 第一版、A 版两套形象，支持拖动、缩放、左右翻转、自定义素材和气泡。
-- 提问显示“我在等你回答”，授权显示“这一步要你点头”；同一请求不重复提醒。
+- 提问显示“老大，我有个问题”，授权显示“这一步要你点头”；下方显示带中括号的会话短名称，同一请求不重复提醒。
+- 每轮结束以角色气泡显示本机 token 用量，使用 K / M 缩写；不会覆盖正在等待的提问和授权提醒。
+- 随机文案气泡可播放小龙娘摸头 GIF；连续点角色提高出现概率，再点气泡才切换内容。
 - 默认静音，可在“声音与气泡”中分别开启音效。
 - 登录 Windows 后启动后台监督器；打开 Codex 时显示，关闭或最小化时隐藏，恢复窗口后重新出现。桌宠大小不随 Codex 窗口缩小。
 
@@ -63,7 +65,7 @@ macOS 保留上游兼容实现与 `.command` 入口，当前版本尚未进行 M
 ```powershell
 npm test
 node scripts/check-package.mjs
-python scripts/build-release.py --release-tag v0.1.0
+python scripts/build-release.py --release-tag v0.1.1
 ```
 
 生成的安装包、源码包、校验和与清单位于 `dist/`，不包含 Electron 下载缓存和个人数据。构建脚本不会上传或发布。开发请隔离 `CODEX_HOME` 与 `WHALE_HOME`，见 [贡献指南](AGENTS.md)。

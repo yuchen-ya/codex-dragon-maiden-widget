@@ -14,6 +14,8 @@ This repository adapts Codex-Whale-Public into a dragon-maiden desktop companion
 - `.codex-plugin/` and `skills/`: plugin metadata and integration instructions.
 - `dist/` and `qa-output/`: ignored release archives and isolated verification output.
 
+Use this checkout as the sole project workspace. Keep media drafts, build scripts, previews, and verification artifacts here; place intermediate files in ignored `qa-output/`. Installed plugin directories are deployment targets, not development workspaces.
+
 ## Build, Test, and Development Commands
 
 Use Node.js 24+ from the repository root. No application compilation step is required.
@@ -22,7 +24,7 @@ Use Node.js 24+ from the repository root. No application compilation step is req
 - `node --test tests/core.test.mjs`: run one focused suite.
 - `node scripts/check-package.mjs`: verify release metadata, required files, and module imports.
 - `node scripts/install-desktop.mjs`: provision the Electron runtime before first launch.
-- `python scripts/build-release.py --release-tag v0.1.0`: build clean installation/source ZIPs; never uploads.
+- `python scripts/build-release.py --release-tag v0.1.1`: build clean installation/source ZIPs; never uploads.
 - `npm start`: open the widget; `npm run desktop` selects standalone desktop mode.
 
 For development and tests, isolate local data using PowerShell:

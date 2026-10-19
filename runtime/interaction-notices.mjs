@@ -18,10 +18,26 @@ function files(directory) {
 
 export function interactionDirectory(dataDir) { return path.join(dataDir, 'interaction-notices'); }
 
-export function readInteractionNotices(dataDir) {
+export function readInteractionNotices(dataDir, codexHome) {
   const directory = interactionDirectory(dataDir);
-  return files(directory).map(name => readJson(path.join(directory, name), null)).filter(Boolean)
+  const notices = files(directory).map(name => readJson(path.join(directory, name), null)).filter(Boolean)
     .sort((a, b) => a.createdAt - b.createdAt);
+  if (!notices.length || !codexHome) return notices;
+  let index;
+  try { index = fs.readFileSync(path.join(codexHome, 'session_index.jsonl'), 'utf8'); }
+  catch (error) { if (error.code === 'ENOENT') return notices; throw error; }
+  const titles = new Map(), pendingThreads = new Set(notices.map(item => item.threadId));
+  for (const line of index.split('\n')) {
+    if (!line.trim()) continue;
+    let entry;
+    // The live index can end with a partially written line; retry it on the next poll.
+    try { entry = JSON.parse(line); }
+    catch (error) { if (error instanceof SyntaxError) continue; throw error; }
+    if (entry && pendingThreads.has(entry.id) && typeof entry.thread_name === 'string') {
+      titles.set(entry.id, entry.thread_name.replace(/[\x00-\x1f\x7f]/g, ' ').trim().slice(0, 160));
+    }
+  }
+  return notices.map(item => ({ ...item, threadTitle: titles.get(item.threadId) || '' }));
 }
 
 // Hook input is a trust boundary. Persist identifiers and event kind only;
@@ -34,7 +50,8 @@ export function acceptInteractionHook(dataDir, input, now = Date.now()) {
   if (['Stop', 'Interrupt', 'SessionEnd', 'UserPromptSubmit'].includes(event)) {
     for (const name of files(directory)) {
       const file = path.join(directory, name), item = readJson(file, null);
-      if (item?.threadId === threadId && (!turnId || item.turnId === turnId || event === 'UserPromptSubmit' || event === 'SessionEnd')) fs.unlinkSync(file);
+      const waitingForAnswer = item?.asyncQuestion === true && ['Stop', 'UserPromptSubmit'].includes(event);
+      if (!waitingForAnswer && item?.threadId === threadId && (!turnId || item.turnId === turnId || event === 'UserPromptSubmit' || event === 'SessionEnd')) fs.unlinkSync(file);
     }
     return;
   }
@@ -49,11 +66,22 @@ export function acceptInteractionHook(dataDir, input, now = Date.now()) {
   const callId = question && identifier(input.tool_use_id) ? input.tool_use_id : fingerprint;
   const file = path.join(directory, digest(stableJson([threadId, turnId, kind, callId])) + '.json');
   if (event === 'PostToolUse') {
+    if (question && input.tool_name.endsWith('_async')) {
+      let response = input.tool_response;
+      if (typeof response === 'string') {
+        try { response = JSON.parse(response); }
+        catch (error) { if (!(error instanceof SyntaxError)) throw error; }
+      }
+      // Creating an async question returns immediately, before the user answers.
+      // The transcript's actual answer/cancellation resolves the notice later.
+      if (response?.accepted === true) return;
+    }
     try { fs.unlinkSync(file); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     return;
   }
   fs.mkdirSync(directory, { recursive: true });
-  try { fs.writeFileSync(file, JSON.stringify({ id: randomUUID(), threadId, turnId, kind, createdAt: now }), { flag: 'wx', mode: 0o600 }); }
+  const lifecycle = question && input.tool_name.endsWith('_async') ? { asyncQuestion: true } : {};
+  try { fs.writeFileSync(file, JSON.stringify({ id: randomUUID(), threadId, turnId, kind, createdAt: now, ...lifecycle }), { flag: 'wx', mode: 0o600 }); }
   catch (error) { if (error.code !== 'EEXIST') throw error; }
 }
 

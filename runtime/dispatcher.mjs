@@ -76,7 +76,7 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
         return jsonResult(200, { ...local, subscription });
       }
       if (url.pathname === '/api/usage-scopes' && method === 'GET') return jsonResult(200, whale.usageScopes());
-      if (url.pathname === '/api/interaction-notices') return method === 'GET' ? jsonResult(200, { ok: true, notices: readInteractionNotices(interactionDataDir) }) : jsonResult(405, { ok: false });
+      if (url.pathname === '/api/interaction-notices') return method === 'GET' ? jsonResult(200, { ok: true, notices: readInteractionNotices(interactionDataDir, whale.config.codexHome) }) : jsonResult(405, { ok: false });
       if (url.pathname === '/api/account-notices') return method === 'GET' ? jsonResult(200, whale.accountNotices()) : jsonResult(405, {ok:false});
       if (url.pathname === '/api/account-notices/ack') return method === 'POST' ? jsonResult(200, whale.ackAccountNotices(parsed().ids)) : jsonResult(405, {ok:false});
       if (url.pathname === '/api/pricing' && method === 'GET') return jsonResult(200, {ok:true,...pricingSchedule(whale.config.resolve())});

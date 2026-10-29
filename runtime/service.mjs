@@ -8,6 +8,7 @@ import { readJson, writeJson } from './paths.mjs';
 import { decimalDifference, decimalAdd, decimalMultiply } from './money-precision.mjs';
 import { accountNoticeScope } from './account-notices.mjs';
 import { TurnJournal, safeSample, safeTurn, safeUsage } from './turn-journal.mjs';
+import { safeMetrics, summarizeMetrics } from './generation-metrics.mjs';
 
 const hasMeter = sample => /^[a-f0-9]{64}$/.test(sample?.meterId || '');
 const observable = sample => sample?.canObserve !== false && !['unconfirmed', 'unsupported'].includes(sample?.balanceStatus);
@@ -34,6 +35,7 @@ export class WhaleService {
     this.closed = false; this.restored = false; this.recoveryActive = new Set();
     this.cancelledOutcomes = new Set();
     this.recoveryError = '';
+    this.recentGeneration = null;
   }
   scope(c, currency) { return c.accountId + '-' + currency; }
   balanceIdentity(c) {
@@ -285,6 +287,7 @@ export class WhaleService {
     }
     const roots = [...this.turns.values()].filter(active => !active.isSubagent);
     const entry = { ...safeTurn(meta), context, canQuery: true, concurrent: !meta.isSubagent && roots.length > 0 };
+    this.observeGeneration(meta);
     if (!meta.isSubagent) for (const active of roots) active.concurrent = true;
     // Subagents contribute tokens, not overlapping API-balance intervals.
     entry.start = meta.isSubagent ? null : this.getBalance({ force: true, context });
@@ -300,10 +303,16 @@ export class WhaleService {
     const turn = this.turns.get(meta.id);
     if (!turn) return;
     turn.byModel = safeUsage(meta.byModel || turn.byModel);
+    turn.metrics = safeMetrics(meta.metrics || turn.metrics);
+    this.observeGeneration(meta);
     if (meta.rootTurnId) turn.rootTurnId = meta.rootTurnId;
     if (meta.ts) turn.ts = meta.ts;
     turn.failureKind = meta.failureKind === 'high-demand' ? 'high-demand' : null;
     this.persistTurn(turn, 'active');
+  }
+  observeGeneration(meta) {
+    const recent = meta.recentGeneration;
+    if (recent && Number.isFinite(recent.timestamp) && (!this.recentGeneration || recent.timestamp > this.recentGeneration.timestamp)) this.recentGeneration = recent;
   }
   persistTurn(turn, stage, meta = turn, extra = {}) {
     if (this.closed) return;
@@ -360,9 +369,11 @@ export class WhaleService {
     const context = turn.context;
     let outcome = meta.outcome || 'completed';
     const ownUsage = safeUsage(meta.byModel || turn.byModel);
+    const metrics = safeMetrics(meta.metrics || turn.metrics);
+    this.observeGeneration(meta);
     const base = { id: meta.id, sessionId: meta.sessionId || turn.sessionId, turnId: meta.turnId,
       rootTurnId: meta.rootTurnId || turn.rootTurnId || meta.turnId, ts: meta.ts || Date.now(), outcome,
-      partial: !!turn.partial, historical: !!meta.historical, accountId: context.accountId,
+      partial: !!turn.partial, historical: !!meta.historical, accountId: context.accountId, metrics,
       failureKind: outcome === 'failed' && meta.failureKind === 'high-demand' ? 'high-demand' : null };
     if (turn.isSubagent || meta.isSubagent) {
       const estimate = !turn.partial ? estimateUsage(ownUsage, context.setting, base.ts) : null;
@@ -407,7 +418,9 @@ export class WhaleService {
       conversationRef: createHash('sha256').update(String(base.sessionId || base.id)).digest('hex').slice(0, 8),
       completionKind, notify: !meta.historical && !!completionKind && (outcome === 'completed' ? meta.notify !== false : meta.statusNotify === true || outcome === 'aborted' && this.cancelledOutcomes.has(meta.id)),
       concurrent: !!turn.concurrent, childTurns: children.length, ownByModel: ownUsage, byModel: combined,
-      pricing: context.setting.models };
+      pricing: context.setting.models, modelMetrics: summarizeMetrics([metrics, ...children.map(child => child.metrics)]),
+      metricsComplete: !turn.partial && !children.some(child => child.partial) && Object.values(metrics).reduce((sum, row) => sum + row.input + row.output, 0) === tokenTotal(ownUsage) && children.every(child => Object.values(child.metrics || {}).reduce((sum, row) => sum + row.input + row.output, 0) === child.tokens),
+      recentGeneration: meta.recentGeneration || null };
     const scope = this.scope(context, currency);
     const models = Object.keys(combined).join(' + ') || context.model || '未知模型';
     const model = source === 'shared-key-interval' ? models + ' · 期间扣费（同密钥合计）' : source === 'token-only' ? models + ' · 仅 token 记录' : models;
@@ -430,7 +443,9 @@ export class WhaleService {
     if (!root) return;
     const children = events.filter(e => e.isSubagent && e.rootTurnId === rootTurnId);
     const combined = mergeUsage([root.ownByModel, ...children.map(e => e.byModel || {})]);
-    const patch = { tokens: tokenTotal(combined), byModel: combined, childTurns: children.length };
+    const patch = { tokens: tokenTotal(combined), byModel: combined, childTurns: children.length,
+      modelMetrics: summarizeMetrics([root.metrics, ...children.map(child => child.metrics)]),
+      metricsComplete: !root.partial && !children.some(child => child.partial) && Object.values(root.metrics || {}).reduce((sum, row) => sum + row.input + row.output, 0) === tokenTotal(root.ownByModel) && children.every(child => Object.values(child.metrics || {}).reduce((sum, row) => sum + row.input + row.output, 0) === child.tokens) };
     if (root.pricing && ['configured-pricing-estimate', 'token-only'].includes(root.source)) {
       const complete = !root.partial && !children.some(e => e.partial);
       const estimate = complete ? estimateUsage(combined, { models: root.pricing }, root.ts) : null;

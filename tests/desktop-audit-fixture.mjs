@@ -6,7 +6,11 @@ import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function verifyDesktop({ app, window, screen, setHost, setTestCursor, dataDir, openedLinks, errors, renderInfo }) {
+export async function verifyDesktop({ app, window, screen, setHost, setTestCursor, dataDir, openedLinks, errors, renderInfo, dispatcher }) {
+  if (process.env.WHALE_GENERATION_METRICS === '1') {
+    const { verifyDesktop } = await import('./generation-bubble-fixture.mjs');
+    return verifyDesktop({ app, window, screen, setHost, errors, dispatcher });
+  }
   if (process.env.WHALE_SURFACE_AUDIT === '1') {
     const { verifySurfaceLifecycle } = await import('./surface-lifecycle-regression.mjs');
     return verifySurfaceLifecycle({ app, window, screen, setHost, setTestCursor, dataDir, renderInfo });
@@ -85,7 +89,7 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
     await ev("window.WhaleFeedback.open()"); await delay(100);
     fs.writeFileSync(path.join(output, 'feedback-v3.png'), (await window.webContents.capturePage()).toPNG());
     await ev("document.querySelector('.whale-v3-dialog[open]').close(); WhaleAccountView.setMode('subscription').then(()=>window.dispatchEvent(new Event('whale-open-insights')))"); await delay(300);
-    await wait("document.querySelector('.whale-v3-dialog[open]')?.textContent.includes('本机已观测 token')", 'insights response rendered');
+    await wait("document.querySelector('.whale-v3-dialog[open]')?.textContent.includes('各模型用量')", 'insights response rendered');
     fs.writeFileSync(path.join(output, 'insights-v3.png'), (await window.webContents.capturePage()).toPNG());
     await ev("WhaleAccountView.setMode('api')");
     await ev("document.querySelector('.whale-v3-dialog[open]').close(); [...document.querySelectorAll('.dshwv-menu button')].find(b=>b.textContent==='本地创意工坊').click()"); await delay(100);

@@ -18,6 +18,9 @@ for (const name of ['../runtime/interaction-notices.mjs', '../runtime/approval-c
 }
 await import('../runtime/approval-context.mjs');
 await import('../runtime/dispatcher.mjs');
+await import('../runtime/model-usage.mjs');
+await import('../runtime/generation-metrics.mjs');
+if (!fs.existsSync(fileURLToPath(new URL('../vendor/codex-usage-dashboard/LICENSE', import.meta.url)))) throw new Error('Usage dashboard license is missing');
 for (const name of ['scripts/macos-launcher.command', 'scripts/install-macos.mjs', 'desktop/macos/supervisor.mjs', 'desktop/macos/window-probe.swift']) {
   if (!fs.existsSync(fileURLToPath(new URL('../' + name, import.meta.url)))) throw new Error('macOS dependency missing: ' + name);
 }

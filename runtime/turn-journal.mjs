@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { readJson, writeJson } from './paths.mjs';
+import { safeMetrics } from './generation-metrics.mjs';
 
 const countFields = ['input_tokens', 'cached_input_tokens', 'cache_write_input_tokens', 'output_tokens', 'reasoning_output_tokens'];
 const finite = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -29,7 +30,7 @@ export function safeTurn(meta) {
   return { id: text(meta.id), sessionId: text(meta.sessionId), turnId: text(meta.turnId),
     rootTurnId: text(meta.rootTurnId || meta.turnId), parentThreadId: text(meta.parentThreadId),
     isSubagent: meta.isSubagent === true, partial: meta.partial === true, historical: meta.historical === true,
-    startedAt: finite(meta.startedAt), ts: finite(meta.ts), byModel: safeUsage(meta.byModel),
+    startedAt: finite(meta.startedAt), ts: finite(meta.ts), byModel: safeUsage(meta.byModel), metrics: safeMetrics(meta.metrics),
     outcome: ['completed', 'failed', 'aborted', 'superseded', 'interrupted'].includes(meta.outcome) ? meta.outcome : null,
     failureKind: meta.failureKind === 'high-demand' ? 'high-demand' : null,
     notify: meta.notify !== false, statusNotify: meta.statusNotify === true };

@@ -63,21 +63,29 @@ const { quotes, lines } = quoteModule.module.exports;
 
 test('quota bubble shows the returned weekly quota and reset without inventing a 5-hour period', () => {
   const modules = quotaBubbleModules({ available: true, windows: [{ windowDurationMins: 10080, usedPercent: 37, resetsAt: Date.UTC(2026, 9, 25, 6, 6) }] });
-  assert.deepEqual(Array.from(modules, item => item.text), ['每周额度', '剩余 63.0%', '重置 10/25 14:06']);
+  assert.deepEqual(Array.from(modules, item => item.text), ['本周', '剩余 63%', '— tok/s']);
+  assert.ok(modules[0].size < modules[1].size && modules[2].size < modules[1].size);
   assert.ok(!modules.some(item => /token|5 小时/.test(item.text)));
 });
 
 test('unknown, unavailable and expired quotas remain distinguishable from zero usage', () => {
-  assert.match(quotaBubbleModules(null)[1].text, /读取中/);
-  assert.match(quotaBubbleModules({ available: false })[1].text, /暂时读不到/);
+  assert.match(quotaBubbleModules(null)[0].text, /读取中/);
+  assert.equal(quotaBubbleModules({ available: false })[1].text, '剩余 —');
   const modules = quotaBubbleModules({ available: true, windows: [{ usedPercent: null, stale: true }] });
-  assert.equal(modules[1].text, '比例未知');
-  assert.match(modules[2].text, /已过期/);
+  assert.match(modules[1].text, /—\*/);
+  assert.equal(modules[2].text, '— tok/s');
 });
 
 test('both returned quota periods fit the same compact scene', () => {
   const modules = quotaBubbleModules({ available: true, windows: [{ windowDurationMins: 300, usedPercent: 0 }, { windowDurationMins: 10080, usedPercent: 50 }] });
-  assert.deepEqual(Array.from(modules, item => item.text), ['Codex 额度', '5 小时额度 剩余 100.0%', '每周额度 剩余 50.0%']);
+  assert.deepEqual(Array.from(modules, item => item.text), ['5小时 / 本周', '剩余 100% / 50%', '— tok/s']);
+});
+
+test('recent quota speed identifies its model and age, and unavailable timing is not zero', () => {
+  const quota = { available: true, windows: [{ windowDurationMins: 10080, usedPercent: 50 }] };
+  const rows = quotaBubbleModules(quota, { model: 'gpt-6.1-sol', tokensPerSecond: 42.5, timestamp: 1000 }, 121000);
+  assert.deepEqual(Array.from(rows, row => row.text), ['本周', '剩余 50%', '42.5 tok/s']);
+  assert.equal(quotaBubbleModules(quota, { model: 'gpt-6-astra', tokensPerSecond: null, timestamp: 1000 }, 1000)[2].text, '— tok/s');
 });
 
 function interaction() {

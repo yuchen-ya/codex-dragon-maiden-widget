@@ -8,6 +8,18 @@ import { MEDIA_POLICY } from '../lib/media-validation.mjs';
 import { FX_POLICY } from '../runtime/fx.mjs';
 
 const fxResponse = rate => new Response(JSON.stringify({ amount: 1, base: 'USD', date: '2026-09-15', rates: { CNY: rate } }));
+
+test('model usage route forwards range and refresh, rejects invalid calls, and closes the owned service', async t => {
+  const calls = []; let closes = 0;
+  const modelUsageService = { async get(options) { calls.push(options); return { available: true, period: options.period, models: [] }; }, async close() { closes++; } };
+  const { server, request } = await setup(t, { modelUsageService });
+  assert.equal((await request('/api/model-usage?period=7d&refresh=1')).payload.period, '7d');
+  assert.deepEqual(calls, [{ period: '7d', force: true }]);
+  assert.equal((await request('/api/model-usage?period=invalid')).status, 400);
+  assert.equal((await request('/api/model-usage', 'POST')).status, 405);
+  assert.equal(calls.length, 1);
+  await server.close(); assert.equal(closes, 1);
+});
 async function setup(t, options = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-dispatcher-'));
   const state = { balances: 0, closes: 0 };

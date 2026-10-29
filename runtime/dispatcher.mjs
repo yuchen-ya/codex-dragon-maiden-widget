@@ -13,6 +13,7 @@ import { pricingSchedule } from './pricing-schedule.mjs';
 import { importWorkshop, exportWorkshop } from '../lib/workshop.mjs';
 import { createCodexQuotaService } from './codex-quota.mjs';
 import { readInteractionNotices } from './interaction-notices.mjs';
+import { createModelUsageService } from './model-usage.mjs';
 
 export const UI_ORIGIN = 'whale://widget';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
@@ -25,12 +26,13 @@ const configurationFailure = error => {
 };
 
 // Dispatch original resource handlers entirely in process; no HTTP listener exists.
-export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dataDir, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
+export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dataDir, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, modelUsageService = null, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
   migrateData(dataDir);
   const whale = service || new WhaleService({ dataDir, ...(fetchImpl ? { fetchImpl } : {}) });
   const fx = createFxService({ dataDir, ...(fxFetchImpl ? { fetchImpl: fxFetchImpl } : {}) });
   const insights = createInsightsService(whale.config);
+  const modelUsage = modelUsageService || createModelUsageService(whale.config, { dataDir });
   const quota = createCodexQuotaService({ codexHome: whale.config.codexHome });
   const displayModeFile = path.join(dataDir, 'display-mode.json');
   const displayMode = () => 'subscription';
@@ -75,7 +77,17 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
         const [local, subscription] = await Promise.all([insights.get(), quota.get({ force: url.searchParams.get('refresh') === '1' })]);
         return jsonResult(200, { ...local, subscription });
       }
+      if (url.pathname === '/api/model-usage') {
+        if (method !== 'GET') return jsonResult(405, { ok: false });
+        const period = url.searchParams.get('period') || 'today';
+        if (!['today', '7d', 'all'].includes(period)) return jsonResult(400, { ok: false, error: '统计范围无效' });
+        return jsonResult(200, await modelUsage.get({ period, force: url.searchParams.get('refresh') === '1' }));
+      }
       if (url.pathname === '/api/usage-scopes' && method === 'GET') return jsonResult(200, whale.usageScopes());
+      if (url.pathname === '/api/recent-generation') {
+        if (method !== 'GET') return jsonResult(405, { ok: false });
+        return jsonResult(200, { recent: whale.config.resolve().setting.monitorSessions === false ? null : whale.recentGeneration || whale.lastTurn().recentGeneration || null });
+      }
       if (url.pathname === '/api/interaction-notices') return method === 'GET' ? jsonResult(200, { ok: true, notices: readInteractionNotices(interactionDataDir, whale.config.codexHome) }) : jsonResult(405, { ok: false });
       if (url.pathname === '/api/account-notices') return method === 'GET' ? jsonResult(200, whale.accountNotices()) : jsonResult(405, {ok:false});
       if (url.pathname === '/api/account-notices/ack') return method === 'POST' ? jsonResult(200, whale.ackAccountNotices(parsed().ids)) : jsonResult(405, {ok:false});
@@ -178,6 +190,7 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
       const failures = [];
       insights.close();
       quota.close();
+      try { await modelUsage.close(); } catch (error) { failures.push(error); }
       try { await fx.close(); } catch (error) { failures.push(error); }
       try { await watcher?.stop({ timeoutMs: 1200 }); } catch (error) { failures.push(error); }
       try { await whale.close?.({ timeoutMs: 3000 }); } catch (error) { failures.push(error); }

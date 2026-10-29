@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import assert from 'node:assert/strict';
+import { ROOT, DATA_HOME } from '../runtime/paths.mjs';
+
+const output = path.join(ROOT, 'qa-output', 'pure-generation');
+fs.mkdirSync(output, { recursive: true });
+const dataDir = fs.mkdtempSync(path.join(output, 'native-data-'));
+const executable = path.join(DATA_HOME, process.platform === 'darwin' ? 'desktop-runtime/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron' : 'desktop-runtime/node_modules/electron/dist/electron.exe');
+const env = { ...process.env, WHALE_HOME: dataDir, CODEX_HOME: path.join(dataDir, 'fixture-codex'), WHALE_DESKTOP_TEST: '1', WHALE_DESKTOP_AUDIT: '1', WHALE_GENERATION_METRICS: '1', WHALE_DESKTOP_VERIFY_DIR: output };
+delete env.ELECTRON_RUN_AS_NODE;
+const child = spawn(executable, [path.join(ROOT, 'desktop/main.cjs'), '--whale-data=' + dataDir], { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+let diagnostics = ''; child.stdout.resume(); child.stderr.on('data', chunk => { diagnostics = (diagnostics + chunk).slice(-2000); });
+const timer = setTimeout(() => child.kill(), 40000);
+const [code] = await once(child, 'close'); clearTimeout(timer);
+const report = JSON.parse(fs.readFileSync(path.join(output, 'bubble-report.json'), 'utf8'));
+assert.equal(code, 0, JSON.stringify({ report, diagnostics })); assert.equal(report.ok, true, JSON.stringify(report));
+console.log('Native quota, completion polling, multi-model bubbles and ellipse geometry passed.');

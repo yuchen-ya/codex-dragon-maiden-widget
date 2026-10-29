@@ -3,7 +3,7 @@ name: codex-dragon-maiden-widget
 description: 显示 Codex 小龙娘，读取订阅额度、检查提问和授权提醒及自动跟随状态。仅在用户需要操作小龙娘时使用。
 ---
 
-# Codex 小龙娘 v0.1.3
+# Codex 小龙娘 v0.1.4
 
 优先使用本插件的 `dragon_quota`、`dragon_usage`、`dragon_status`、`dragon_open` 工具。未连接时，从插件根目录运行 `node scripts/control.mjs status`；查询额度使用 `node scripts/control.mjs quota`。报告实际结果，不把未运行的检查称为通过。
 

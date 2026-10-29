@@ -32,6 +32,9 @@
       currency: record.currency || nativeCurrency,
       costState: known ? record.costState || 'observed' : record.costState === 'pending' ? 'pending' : 'unknown',
       tokens: Number.isFinite(record.tokens) && record.tokens >= 0 ? Math.floor(record.tokens) : null,
+      modelMetrics: Object.freeze((record.modelMetrics || []).map(row => Object.freeze({ ...row }))),
+      metricsComplete: record.metricsComplete === true,
+      recentGeneration: record.recentGeneration ? Object.freeze({ ...record.recentGeneration }) : null,
       note: String(record.note || ''),
     });
   }

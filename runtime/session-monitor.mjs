@@ -3,11 +3,12 @@ import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { Worker } from 'node:worker_threads';
 import { failureKind } from './failure-kind.mjs';
+import { GenerationTimer, addMetricRequest } from './generation-metrics.mjs';
 
 const fields = ['input_tokens', 'cached_input_tokens', 'cache_write_input_tokens', 'output_tokens', 'reasoning_output_tokens'];
 const normalize = value => Object.fromEntries(fields.map(key => [key, Math.max(0, Number(value?.[key]) || 0)]));
 const zero = () => normalize({});
-const relevant = /"(?:session_meta|token_count|turn_context|task_started|task_complete|turn_started|turn_completed|turn_aborted|task_aborted|error|stream_error|function_call|function_call_output)"|send_user_message_question_reply/;
+const relevant = /"(?:session_meta|token_count|token_usage_record|item_completed|thread_settings_applied|turn_context|task_started|task_complete|turn_started|turn_completed|turn_aborted|task_aborted|error|stream_error|function_call|function_call_output)"|send_user_message_question_reply/;
 const timestamp = value => typeof value === 'number' ? (value < 1e12 ? value * 1000 : value) : Date.parse(value);
 
 export class SessionParser {
@@ -19,6 +20,7 @@ export class SessionParser {
     this.identity = null; this.skipHistory = 0; this.completed = new Set();
     this.recentEnds = new Map();
     this.recoverIds = new Set(recoverIds); this.recoverySeen = new Set();
+    this.generationTimer = new GenerationTimer(); this.serviceTier = '';
   }
   identify(meta) {
     // Only the first header identifies this file; session_id may be inherited.
@@ -34,7 +36,7 @@ export class SessionParser {
     for (const line of lines) this.accept(line);
     this.priming = false;
     if (this.active) {
-      if (!this.active.recoverable) { this.active.byModel = {}; this.active.partial = true; }
+      if (!this.active.recoverable) { this.active.byModel = {}; this.active.metrics = {}; this.active.partial = true; }
       this.onStart({ ...this.active });
     }
     for (const input of this.questions.values()) this.onInteraction(input);
@@ -45,10 +47,12 @@ export class SessionParser {
     let d;
     try { d = typeof line === 'string' ? JSON.parse(line) : line; } catch { return; }
     const p = d.payload || {};
+    this.generationTimer.observe(d);
     if (d.type === 'session_meta') { this.identify(p); return; }
     if (d.type === 'response_item') { this.interaction(p); return; }
     if (d.type === 'turn_context') {
       if (typeof p.model === 'string' && !['__proto__', 'prototype', 'constructor'].includes(p.model)) this.model = p.model;
+      if (typeof p.service_tier === 'string') this.serviceTier = p.service_tier;
       if (this.active && (!p.turn_id || p.turn_id === this.active.turnId)) {
         this.active.rootTurnId = p.root_turn_id || this.active.turnId;
         if (!this.priming) this.onUpdate({ ...this.active });
@@ -75,13 +79,14 @@ export class SessionParser {
       if (this.active) this.end(timestamp(d.timestamp) || Date.now(), 'superseded');
       this.active = { id: this.id + ':' + turnId, sessionId: this.id, turnId, rootTurnId: p.root_turn_id || turnId,
         isSubagent: this.identity?.isSubagent || false, parentThreadId: this.identity?.parentThreadId || null,
-        byModel: {}, startedAt: startedAt || timestamp(d.timestamp) || Date.now(), ts: timestamp(d.timestamp) || Date.now(), partial: false };
+        byModel: {}, metrics: {}, startedAt: startedAt || timestamp(d.timestamp) || Date.now(), ts: timestamp(d.timestamp) || Date.now(), partial: false };
       this.active.recoverable = this.recoverIds.has(this.active.id);
       if (this.active.recoverable) this.recoverySeen.add(this.active.id);
       if (!this.priming) this.onStart({ ...this.active });
       return;
     }
     if (p.type === 'token_count' && p.info?.total_token_usage) {
+      const hadTotal = this.total !== null;
       const next = normalize(p.info.total_token_usage);
       let delta = zero();
       if (this.total) {
@@ -89,14 +94,26 @@ export class SessionParser {
         delta = reset ? normalize(p.info.last_token_usage) : Object.fromEntries(fields.map(k => [k, Math.max(0, next[k] - this.total[k])]));
       } else if (this.active && (!this.priming || this.active.recoverable)) delta = normalize(p.info.last_token_usage || next);
       this.total = next;
+      const at = timestamp(d.timestamp) || Date.now();
+      const timingCounts = hadTotal ? delta : normalize(p.info.last_token_usage || next);
+      const duration = timingCounts.input_tokens + timingCounts.output_tokens > 0 ? this.generationTimer.finish(at, timingCounts) : null;
+      if (this.active && timingCounts.input_tokens + timingCounts.output_tokens > 0) this.active.recentGeneration = {
+        model: this.model || '未知模型', tokensPerSecond: duration !== null && timingCounts.output_tokens > 0 ? timingCounts.output_tokens * 1000 / duration : null, timestamp: at };
       if (this.active && (!this.priming || this.active.recoverable) && delta.input_tokens + delta.output_tokens > 0) {
         const model = this.model || '未知模型';
         const counts = Object.hasOwn(this.active.byModel, model) ? this.active.byModel[model] : (this.active.byModel[model] = zero());
         for (const k of fields) counts[k] += delta[k];
         this.active.ts = timestamp(d.timestamp) || Date.now();
+        addMetricRequest(this.active.metrics, model, delta, duration, this.active.ts, this.serviceTier);
         if (!this.priming) this.onUpdate({ ...this.active });
       }
       return;
+    }
+    if (p.type === 'thread_settings_applied') {
+      const tier = p.thread_settings?.service_tier ?? p.service_tier;
+      if (typeof tier === 'string') this.serviceTier = tier;
+      const model = p.thread_settings?.model ?? p.model;
+      if (typeof model === 'string' && !['__proto__', 'prototype', 'constructor'].includes(model)) this.model = model;
     }
     if (['task_complete', 'turn_completed', 'turn_aborted', 'task_aborted'].includes(p.type)) {
       const previous = this.recentEnds.get(turnId);

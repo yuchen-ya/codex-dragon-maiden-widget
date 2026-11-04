@@ -16,6 +16,7 @@ const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
 function harness() {
   const renders = [], rendered = [], timers = new Map(); let clock = 1000, timer = 0;
   const box = {
+    window: {},
     Date: { now: () => clock }, Promise,
     setTimeout(fn, ms) { timers.set(++timer, { fn, ms }); return timer; }, clearTimeout(id) { timers.delete(id); },
     bubbleOn: true, bubbleBox: { classList: { add() {}, remove() {} } }, textBox: {},
@@ -37,6 +38,16 @@ function harness() {
   const enqueue = amount => { box.whaleSysPush({ kind: 'cost', amount, rank: 3 }); box.whaleSysTick(); };
   return { box, renders, rendered, timers, enqueue, now(v) { clock = v; } };
 }
+
+test('collapsed character neither renders ordinary bubbles nor accumulates new system notices', () => {
+  const h = harness(); h.box.window.WhaleCollapse = { collapsed: true };
+  h.enqueue(1);
+  h.box.sceneOpen('normal', () => assert.fail('collapsed scene rendered'), 1000);
+  assert.equal(h.renders.length, 0); assert.equal(h.box.whaleSysQueue.length, 0);
+  let discarded = false;
+  h.box.sceneOpen('reaction', () => assert.fail('collapsed reaction rendered'), 1000, { onDiscard() { discarded = true; } });
+  assert.equal(discarded, true);
+});
 
 test('failed first frame releases queue ownership and automatically opens the following cost', async () => {
   const h = harness(); h.enqueue(1); h.enqueue(2);

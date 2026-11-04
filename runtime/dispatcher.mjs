@@ -19,7 +19,7 @@ import { SendingSource } from './send-events.mjs';
 import { SendReactions } from './send-reactions.mjs';
 
 export const UI_ORIGIN = 'whale://widget';
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 const jsonResult = (status, payload) => ({ status, headers: { 'content-type': 'application/json; charset=utf-8' }, body: Buffer.from(JSON.stringify(payload)) });
 const configurationFailure = error => {
@@ -200,6 +200,7 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
       uiFiles['/balance-view.js']='balance-view.js';
       uiFiles['/jev-settings.js']='jev-settings.js';
       uiFiles['/reaction-notices.js']='reaction-notices.js';
+      uiFiles['/collapse.js']='collapse.js';
       let file;
       if (Object.hasOwn(uiFiles, url.pathname)) file = path.join(ROOT, 'desktop', 'ui', uiFiles[url.pathname]);
       else if (url.pathname.startsWith('/assets/')) {

@@ -9,6 +9,8 @@
 ## 素材
 
 - `assets/dragon-maiden-bust-v1.png` 与 `dragon-maiden-bust-v1-a.png`：AI 辅助创作的非官方二创形象，详见 `docs/MEDIA.md`。不宣称拥有参考角色或相关商标权。
+- `assets/dragon-maiden-tail-v1.png`：参考第一版形象，经用户确认的 AI 辅助创作透明尾巴；权利边界同上述角色素材，详见 `docs/MEDIA.md`。
+- `assets/dragon-maiden-hide-v7.webp`、`dragon-maiden-appear-v7.webp`、`dragon-maiden-tail-hide-v8.webp`、`dragon-maiden-tail-appear-v8.webp` 与 `dragon-maiden-tail-motion-v8.json`：imagegen 姿势参考、本机 MiniMax H3 身体动作与 SatoDive 透明处理，结合已确认尾巴原图的连续曲线动画及衍生轨迹；详见 `docs/MEDIA.md`。
 - `assets/dragon-maiden-petpet.gif`：将第一版小龙娘与上游 `bubble-petpet.gif` 的原手掌逐帧合成；这是改编素材，保留上游手掌素材的来源与权利归属。
 - `assets/bubble-petpet.gif`、`bubble-yue-money.gif`、`rua.gif` 与 `Ya1.mp3`、`Ya2.mp3`、`D1.mp3`、`D2.mp3`：继承自上游，按其媒体条款 as-is 随挂件分发；不授予额外的独立提取、商业使用或再许可权。
 - 文案审核及出处：`docs/quote-sources.json`；运行时只使用已确认文案及已落实的触发条件。

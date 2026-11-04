@@ -28,7 +28,8 @@
     for(const mask of document.querySelectorAll('[class*="mask"]'))if(visible(mask)&&[...mask.children].some(c=>cardHit(c)))return true;
     const target = document.elementFromPoint(p.x, p.y);
     if (target?.closest('.dshwv-pop-open') && !target.closest('[inert]')) return true;
-    return visible(pet) && (rendering.petInteraction ? rendering.petInteraction.hit(pet, root, p.x, p.y) :
+    if (window.WhaleCollapse?.hit(p.x, p.y)) return true;
+    return !window.WhaleCollapse?.collapsed && !window.WhaleCollapse?.busy && visible(pet) && (rendering.petInteraction ? rendering.petInteraction.hit(pet, root, p.x, p.y) :
       rendering.hitCache.hit(pet, p.x, p.y, rendering.mirrorScale(root) < 0));
   }
   function update() {

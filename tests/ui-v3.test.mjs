@@ -13,10 +13,28 @@ function audioFixture() {
     createGain() { return { gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
     createBufferSource() { const source = { connect(gain) { this.gain = gain; }, start(at) { this.started = true; this.at = at; }, stop() { this.stopped = true; } }; sources.push(source); return source; }
   }
-  const context = { window: { addEventListener() {} }, AudioContext, fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }), setTimeout: callback => { idle = callback; return 1; }, clearTimeout() {} };
+  const listeners = new Map();
+  const context = { window: { addEventListener(name, listener) { listeners.set(name, listener); } }, AudioContext, fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }), setTimeout: callback => { idle = callback; return 1; }, clearTimeout() {} };
   vm.runInNewContext(read('audio-engine.js'), context);
-  return { api: context.window.WhaleAudio, sources, contexts: () => contexts, idle: () => idle() };
+  return { api: context.window.WhaleAudio, window: context.window, emit: name => listeners.get(name)(), sources, contexts: () => contexts, idle: () => idle() };
 }
+
+test('collapsed and transitioning pets never start audio, and collapsing stops current and pending sounds', async () => {
+  const f = audioFixture();
+  f.window.WhaleCollapse = { collapsed: true, busy: false };
+  await f.api.play({ url: '/task', volume: 1 }); assert.equal(f.contexts(), 0);
+  f.window.WhaleCollapse = { collapsed: false, busy: true };
+  await f.api.play({ url: '/task', volume: 1 }); assert.equal(f.contexts(), 0);
+  f.window.WhaleCollapse = { collapsed: false, busy: false };
+  await f.api.play({ channel: 'notice', url: '/task' });
+  const pending = f.api.play({ channel: 'gesture', url: '/press' });
+  f.window.WhaleCollapse.collapsed = true;
+  f.emit('whale-collapse-changed'); await pending;
+  assert.equal(f.sources.length, 1); assert.equal(f.sources[0].stopped, true);
+  f.window.WhaleCollapse.collapsed = false;
+  await f.api.play({ channel: 'notice', url: '/new-task' });
+  assert.equal(f.sources.length, 2); assert.equal(f.sources[1].started, true);
+});
 test('zero volume never opens audio hardware or fetches, release interrupts a 20-second press immediately', async () => {
   const f = audioFixture(); await f.api.play({ url: '/press', volume: 0 }); assert.equal(f.contexts(), 0);
   await f.api.play({ channel: 'gesture', url: '/press', volume: .5 }); assert.equal(f.sources[0].started, true);

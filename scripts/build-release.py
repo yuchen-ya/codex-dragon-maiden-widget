@@ -24,10 +24,10 @@ output = args.output.resolve()
 allowed = {'.codex-plugin', '.github', 'assets', 'desktop', 'docs', 'lib', 'runtime', 'scripts', 'skills', 'tests', 'vendor'}
 root_files = {'.mcp.json', '.gitignore', '.gitattributes', 'package.json', 'package-lock.json', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'RELEASE_NOTES.md', 'PROVENANCE.md', 'SECURITY.md', 'AGENTS.md'}
 blocked = {'node_modules', '.git', 'dist', 'qa', 'qa-output', 'backups', 'desktop-profile', 'desktop-runtime', '__pycache__', 'archive', 'packages'}
-private_names = {'auth.json', 'config.toml', 'api-settings.json', 'usage-settings.json', 'runtime.json', 'service.lock', 'installation.json', 'ui-state.json', 'follow-state.json', 'last-turn.json', 'turn-journal.json', 'follow-config.json', 'follow-install.json', 'desktop-enabled.json', 'desktop-shutdown.json', '.dshw-size.json', '.dshw-bubble.json', 'display-mode.json'}
+private_names = {'auth.json', 'config.toml', 'api-settings.json', 'jev-settings.json', 'usage-settings.json', 'runtime.json', 'service.lock', 'installation.json', 'ui-state.json', 'follow-state.json', 'last-turn.json', 'turn-journal.json', 'follow-config.json', 'follow-install.json', 'desktop-enabled.json', 'desktop-shutdown.json', '.dshw-size.json', '.dshw-bubble.json', 'display-mode.json'}
 private_ext = {'.log', '.jsonl', '.db', '.sqlite', '.sqlite3', '.pem', '.key', '.pfx', '.bak', '.tmp', '.mp4', '.exe', '.dll', '.zip', '.7z', '.rar', '.tar', '.gz'}
 text_ext = {'.json', '.js', '.mjs', '.cjs', '.md', '.ps1', '.cmd', '.command', '.swift', '.txt', '.html', '.css', '.cs', '.py', '.yml', '.yaml', '.ts', '.toml', '.ini'}
-media_ext = {'.png', '.gif', '.mp3', '.wav'}
+media_ext = {'.png', '.webp', '.gif', '.mp3', '.wav'}
 patterns = [re.compile(r'[A-Z]:[/\\]+(?:Users[/\\]+[^/\\\s<>"\']+[/\\]|Codex_work(?:place)?(?:[/\\]|\b)|QQ[/\\]+downloads)', re.I),
             re.compile(r'/(?:Users|home)/[^/\s<>"\']+/', re.I),
             re.compile(r'any' + r'router', re.I), re.compile(r'sk-[A-Za-z0-9_-]{24,}'),
@@ -83,6 +83,26 @@ def sanitize_gif(name, data):
 
 def sanitize(name, data):
     kinds = []
+    if data.startswith(b'RIFF') and data[8:12] == b'WEBP':
+        assert struct.unpack('<I', data[4:8])[0] + 8 == len(data), 'Invalid WebP: ' + name
+        parts, offset = [], 12
+        while offset < len(data):
+            assert offset + 8 <= len(data), 'Truncated WebP: ' + name
+            kind = data[offset:offset+4]
+            size = struct.unpack('<I', data[offset+4:offset+8])[0]
+            end = offset + 8 + size + (size & 1)
+            assert end <= len(data), 'Invalid WebP chunk: ' + name
+            chunk = data[offset:end]
+            if kind in {b'EXIF', b'XMP '}:
+                kinds.append(kind.decode('ascii').strip())
+            else:
+                if kind == b'VP8X':
+                    assert size == 10, 'Invalid WebP extended header: ' + name
+                    chunk = chunk[:8] + bytes([chunk[8] & ~12]) + chunk[9:]
+                parts.append(chunk)
+            offset = end
+        payload = b'WEBP' + b''.join(parts)
+        data = b'RIFF' + struct.pack('<I', len(payload)) + payload
     if data.startswith((b'GIF87a', b'GIF89a')):
         data, kinds = sanitize_gif(name, data)
     if data.startswith(b'\x89PNG\r\n\x1a\n'):

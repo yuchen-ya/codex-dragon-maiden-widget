@@ -22,13 +22,14 @@
   }
   async function play({ channel = 'preview', url, urls, preset = 'original', volume = .9 } = {}) {
     stop(channel); const epoch = epochs.get(channel);
+    if (window.WhaleCollapse?.collapsed || window.WhaleCollapse?.busy) return;
     if (!(Number(volume) > 0)) return;
     try {
       const c = context(); touch(); await c.resume();
       // Decode the complete group before scheduling so release follows the full press.
       // A missing slot must not prevent the remaining slots from playing.
       const sequence = preset === 'original' ? (await Promise.all((urls || [url]).filter(Boolean).map(src => warm(src).catch(() => null)))).filter(Boolean) : [];
-      if (epochs.get(channel) !== epoch || c !== ctx) return;
+      if (epochs.get(channel) !== epoch || c !== ctx || window.WhaleCollapse?.collapsed || window.WhaleCollapse?.busy) return;
       const gain = c.createGain(); gain.connect(c.destination);
       const now = c.currentTime, nodes = [];
       if (preset === 'original') {
@@ -51,6 +52,9 @@
     } catch { /* Missing or unsupported audio must never block interaction. */ }
   }
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) { stop(); ctx?.suspend().catch(() => {}); } });
+  window.addEventListener('whale-collapse-changed', () => {
+    if (window.WhaleCollapse?.collapsed || window.WhaleCollapse?.busy) stop();
+  });
   window.addEventListener('beforeunload', () => { stop(); clearTimeout(idle); ctx?.close().catch(() => {}); });
   window.WhaleAudio = Object.freeze({ warm, play, stop });
 })();

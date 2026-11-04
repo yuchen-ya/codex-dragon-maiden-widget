@@ -8,6 +8,7 @@ const logic = source.slice(source.indexOf('    var menuHoverTimer = null;'), sou
 function fixture() {
   const classes = new Set(), timers = new Map(); let sequence = 0;
   const box = vm.createContext({
+    window: {},
     menuBtnHide: false, menuOpen: false, drag: null,
     img: { getBoundingClientRect: () => ({ left: 100, right: 210, top: 100, bottom: 210 }) },
     menuBtn: {
@@ -60,4 +61,10 @@ test('mode reset clears delayed hides and invalid native samples cannot retain h
   f.box.resetMenuButtonHover(); assert.equal(f.timers.size, 0); assert.equal(f.visible(), false);
   f.move(170, 160); f.move(-1, -1); f.flush(); assert.equal(f.visible(), false);
   assert.equal(f.box.inMenuHoverArea({ clientX: NaN, clientY: 114 }), false);
+});
+
+test('collapsed character cannot reveal the body menu on hover', () => {
+  const f = fixture(); f.move(170, 160); assert.equal(f.visible(), true);
+  f.box.window.WhaleCollapse = { collapsed: true };
+  f.move(170, 160); assert.equal(f.visible(), false);
 });

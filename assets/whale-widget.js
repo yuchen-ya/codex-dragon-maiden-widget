@@ -447,6 +447,7 @@
       } catch (err) {}
     }
     function playTaskEndSound() {
+      if (window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) return;
       try {
         if (!usageSet || !usageSet.taskEnd || !usageSet.taskEnd.on || soundOn === false) return;
         var sel = usageSet.taskEnd.sel || taskEndSel.value || '';
@@ -8198,6 +8199,10 @@
     }
     
     function sceneOpen(kind, renderFn, ttlMs, systemItem) {
+      if (window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) {
+        if (systemItem && typeof systemItem.onDiscard === 'function') systemItem.onDiscard();
+        return;
+      }
       if (bubbleScene && bubbleScene.pending && bubbleScene.systemItem && typeof bubbleScene.systemItem.onDiscard === 'function') bubbleScene.systemItem.onDiscard();
       // The queue owns the same generation as its scene. A pending render is
       // never a rollback target: only the last committed frame can be restored.
@@ -8964,6 +8969,7 @@
     var whaleSysTimer = null;
     function whaleSysPush(item) {
       try {
+        if (window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) return false;
         if (!bubbleOn || !bubbleBox || !textBox) return false;
         if (!item || !item.kind) return false;
         var rank = Number(item.rank);
@@ -8990,6 +8996,7 @@
     function whaleSysTick() {
       if (whaleSysTimer) clearTimeout(whaleSysTimer);
       whaleSysTimer = null;
+      if (window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) return;
       try {
         if (!bubbleOn || !bubbleBox || !textBox) {
           for (var pendingItem of [whaleSysItem].concat(whaleSysQueue || [])) { if (pendingItem && typeof pendingItem.onDiscard === 'function') pendingItem.onDiscard(); }
@@ -11266,11 +11273,13 @@
       return { left: state.left, top: state.top, right: state.left + width, bottom: state.top + height, width: width, height: height };
     }
     function isWhaleHit(e) {
+      if (window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) return false;
       return !!e && (WhaleRendering.petInteraction ? WhaleRendering.petInteraction.hit(img, root, e.clientX, e.clientY) :
         WhaleRendering.hitCache.hit(img, e.clientX, e.clientY, WhaleRendering.mirrorScale(root) < 0));
     }
     function onDocPointerDown(e) {
       if (e.target && e.target.closest) {
+        if (e.target.closest('.dshwv-tail') && window.WhaleCollapse && window.WhaleCollapse.hit(e.clientX, e.clientY)) return;
         if (e.target.closest('dialog[open]')) return;
         if (e.target.closest('.dshwv-fx-info')) return;
         if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu-btn')) return;
@@ -11389,6 +11398,7 @@
         e.clientY >= Math.min(pet.top, button.top) - pad && e.clientY <= Math.max(pet.bottom, button.bottom) + pad;
     }
     function updateMenuButtonHover(e, overPet, overControl) {
+      if (window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) { resetMenuButtonHover(); return; }
       if (menuBtnHide) { resetMenuButtonHover(); return; }
       if (menuOpen || overPet || overControl || menuBtn.classList.contains('dshwv-menu-btn-visible') && inMenuHoverArea(e)) {
         showMenuButton();
@@ -11428,6 +11438,28 @@
     root.addEventListener('lostpointercapture', function (e) { endDrag(e, false); });
     window.addEventListener('blur', function () { endDrag(null, false); });
     window.addEventListener('whale-mode-changing', function () { endDrag(null,false,true); closeMenu(); resetMenuButtonHover(); hideBubble(); window.getSelection()?.removeAllRanges(); setWidgetCursor(''); });
+    window.addEventListener('whale-collapse-changed', function (event) {
+      endDrag(null, false, true);
+      closeMenu(); resetMenuButtonHover(); hideBubble(); setWidgetCursor('');
+      window.dispatchEvent(new Event('whale-reaction-invalidate'));
+      if (!event.detail.collapsed) { pollInteractionNotices(); whaleSysTick(); }
+    });
+    var tailTugLines = {
+      pull: ['干嘛，老大，又揪我尾巴。', '轻点，尾巴可不是提手。', '好啦，本龙出来就是了。'],
+      rapid: ['干嘛，老大。', '点点点，我听见啦。', '来了来了，尾巴都快被老大点热了。']
+    };
+    var tailTugIndex = 0, lastTailTug = -Infinity;
+    function showTailResponse(kind) {
+      if (reactionBlocked() || Date.now() - lastTailTug < 800) return;
+      lastTailTug = Date.now();
+      var lines = tailTugLines[kind];
+      var line = lines[tailTugIndex++ % lines.length];
+      sceneOpen('tail', function () {
+        bubbleRenderModules([{ type: 'text', text: line, size: 18, bold: true, rgb: 'indigo' }]);
+      }, 2500);
+    }
+    window.addEventListener('whale-tail-tug', function () { showTailResponse('pull'); });
+    window.addEventListener('whale-tail-response', function (event) { showTailResponse(event.detail); });
     window.addEventListener('whale-desktop-mode', function () { endDrag(null,false,true); closeMenu(); resetMenuButtonHover(); hideBubble(); applyAnchorPos(); settle(); window.getSelection()?.removeAllRanges(); setWidgetCursor(''); });
     window.addEventListener('whale-account-view', function () {
       // A display-mode switch updates this menu in place, retaining its open state.
@@ -11686,7 +11718,7 @@
       if (bubbleScene && bubbleScene.kind === 'wait' && bubbleScene.systemItem.noticeId === id) hideUsageAlertBubble();
     }
     var interactionNoticeClient = window.WhaleInteractionNotices && window.WhaleInteractionNotices.create({
-      enabled: function () { return bubbleOn && !document.hidden; },
+      enabled: function () { return bubbleOn && !document.hidden && !(window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)); },
       show: showInteractionNotice, clear: clearInteractionNotice
     });
     function pollInteractionNotices() { if (interactionNoticeClient) return interactionNoticeClient.poll(); }
@@ -11694,7 +11726,7 @@
     setInterval(pollInteractionNotices, 1000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) pollInteractionNotices(); });
     function reactionBlocked() {
-      return !bubbleOn || menuOpen || !!document.querySelector('dialog[open]') ||
+      return !!(window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) || !bubbleOn || menuOpen || !!document.querySelector('dialog[open]') ||
         whaleSysQueue.length > 0 || !!(bubbleScene && bubbleScene.kind !== 'random' && bubbleScene.kind !== 'reaction');
     }
     var reactionNoticeClient = window.WhaleReactionNotices && window.WhaleReactionNotices.create({

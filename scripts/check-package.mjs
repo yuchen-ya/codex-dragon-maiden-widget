@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {verifyReleaseMetadata} from './release-metadata.mjs';
 const version=verifyReleaseMetadata();
-for (const name of ['dragon-maiden-bust-v1.png', 'dragon-maiden-bust-v1-a.png']) {
+for (const name of ['dragon-maiden-bust-v1.png', 'dragon-maiden-bust-v1-a.png', 'dragon-maiden-tail-v1.png']) {
   if (!fs.existsSync(fileURLToPath(new URL('../assets/' + name, import.meta.url)))) throw new Error('Approved character image missing: ' + name);
 }
 for(const name of ['../vendor/smol-toml/dist/index.js','../desktop/main.cjs','../desktop/ui/widget.html','../desktop/ui/gesture.js','../desktop/ui/audio-engine.js','../desktop/ui/insights.js','../desktop/ui/workshop.js','../assets/dragon-maiden-bust-v1.png']) {
@@ -19,8 +19,15 @@ for (const name of ['../runtime/interaction-notices.mjs', '../runtime/approval-c
 await import('../runtime/approval-context.mjs');
 await import('../runtime/dispatcher.mjs');
 if (!fs.existsSync(fileURLToPath(new URL('../desktop/ui/jev-settings.js', import.meta.url)))) throw new Error('Jev settings UI is missing');
-for (const file of ['../desktop/ui/reaction-notices.js', '../assets/dragon-maiden-reactions.json']) {
+for (const file of ['../desktop/ui/reaction-notices.js', '../assets/dragon-maiden-reactions.json', '../desktop/ui/collapse.js']) {
   if (!fs.existsSync(fileURLToPath(new URL(file, import.meta.url)))) throw new Error('Reaction dependency is missing: ' + file);
+}
+for (const file of ['dragon-maiden-hide-v7.webp', 'dragon-maiden-appear-v7.webp', 'dragon-maiden-tail-hide-v8.webp', 'dragon-maiden-tail-appear-v8.webp', 'dragon-maiden-tail-v1.png']) {
+  if (!fs.existsSync(fileURLToPath(new URL('../assets/' + file, import.meta.url)))) throw new Error('Collapse animation asset is missing: ' + file);
+}
+const tailTrack = JSON.parse(fs.readFileSync(new URL('../assets/dragon-maiden-tail-motion-v8.json', import.meta.url), 'utf8'));
+for (const action of ['hide', 'appear']) {
+  if (tailTrack[action].length !== 56 || tailTrack[action].some(point => point.length !== 2 || point.some(value => !Number.isFinite(value)))) throw new Error('Invalid tail motion track');
 }
 await import('../runtime/model-usage.mjs');
 await import('../runtime/generation-metrics.mjs');

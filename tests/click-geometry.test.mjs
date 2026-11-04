@@ -75,7 +75,7 @@ test('large-pet upper-edge remains alpha-hit through hold, first release RAF and
 
 test('the real widget predicate and native region use the same retained geometry as input routing', () => {
   const g = geometry(); g.api.begin(g.img, g.root, 1); g.compress(.88);
-  const predicate = vm.createContext({ img: g.img, root: g.root, WhaleRendering: { petInteraction: g.api } });
+  const predicate = vm.createContext({ window: {}, img: g.img, root: g.root, WhaleRendering: { petInteraction: g.api } });
   vm.runInContext(realFunction(widgetSource, 'isWhaleHit'), predicate);
   assert.equal(predicate.isWhaleHit({ clientX: 250, clientY: 105 }), true);
   const window = { whaleDesktop: { platform: 'win32', testMode: true, shape() {} }, WhaleRendering: { petInteraction: g.api, onFrame() {} }, addEventListener() {} };

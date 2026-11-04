@@ -50,6 +50,19 @@
         if(r){const key=JSON.stringify(r);if(!seen.has(key)){seen.add(key);result.push(r);}}
       }
     });
+    for(const el of document.querySelectorAll('.dshwv-tail')){
+      add(el,true);
+      const paint=window.WhaleCollapse?.paintBounds();
+      if(visible(el,true)&&paint){
+        const r=bounds({getBoundingClientRect:()=>paint});
+        if(r){const key=JSON.stringify(r);if(!seen.has(key)){seen.add(key);result.push(r);}}
+      }
+      if(paintingAnimations(el).some(a=>a.pending||(a.playState==='running'&&a.playbackRate!==0)))animate=true;
+    }
+    document.querySelectorAll('.dshwv-collapse-actor').forEach(e=>{
+      add(e,true);
+      if(paintingAnimations(e).some(a=>a.pending||(a.playState==='running'&&a.playbackRate!==0)))animate=true;
+    });
     for(const el of document.querySelectorAll('.dshwv-pop,.dshwv-menu-btn,.dshwv-menu')){
       if(!visible(el,true))continue;
       const animations=paintingAnimations(el);
@@ -72,7 +85,7 @@
   // changing its own attributes or the document viewport. Track the surfaces too.
   const observed=new Set(),resizeObserver=new ResizeObserver(request);
   function trackSurfaces(){
-    const targets=new Set(document.querySelectorAll('.dshwv-img,.dshwv-root,.dshwv-pop,.dshwv-menu-btn,.dshwv-menu,dialog,.whale-account-card,[class*="mask"]>*'));
+    const targets=new Set(document.querySelectorAll('.dshwv-img,.dshwv-tail,.dshwv-root,.dshwv-pop,.dshwv-menu-btn,.dshwv-menu,dialog,.whale-account-card,[class*="mask"]>*'));
     targets.add(document.documentElement);
     for(const el of observed)if(!targets.has(el)){resizeObserver.unobserve(el);observed.delete(el);}
     for(const el of targets)if(!observed.has(el)){observed.add(el);resizeObserver.observe(el);}

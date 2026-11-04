@@ -1,8 +1,10 @@
 """Exercise release rejection gates with synthetic data in isolated directories."""
 from pathlib import Path
+import ast
 import os
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -57,6 +59,26 @@ class PrivacyGates(unittest.TestCase):
 
     def test_optimization_cannot_bypass_privacy(self):
         self.reject('docs/hidden.zip', b'PK', 'without optimization', optimized=True)
+
+    def test_invalid_webp_container_is_rejected(self):
+        self.reject('assets/motion.webp', b'RIFF' + struct.pack('<I', 99) + b'WEBP', 'Invalid WebP')
+
+    def test_webp_metadata_is_removed_without_changing_animation_payload(self):
+        tree = ast.parse(BUILDER.read_text(encoding='utf-8'))
+        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in {'sanitize', 'sanitize_gif'}]
+        scope = {'struct': struct, 'removed': []}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), str(BUILDER), 'exec'), scope)
+        def chunk(kind, payload):
+            return kind + struct.pack('<I', len(payload)) + payload + (b'\0' if len(payload) & 1 else b'')
+        header = chunk(b'VP8X', bytes([0x1e]) + bytes(9))
+        animation = chunk(b'ANIM', bytes(6)) + chunk(b'ANMF', b'unchanged frame payload')
+        metadata = chunk(b'EXIF', b'private camera info') + chunk(b'XMP ', b'private editing info')
+        payload = b'WEBP' + header + animation + metadata
+        cleaned = scope['sanitize']('assets/motion.webp', b'RIFF' + struct.pack('<I', len(payload)) + payload)
+        self.assertEqual(struct.unpack('<I', cleaned[4:8])[0] + 8, len(cleaned))
+        self.assertIn(animation, cleaned)
+        self.assertNotIn(metadata, cleaned)
+        self.assertEqual(cleaned[20], 0x12, 'alpha and animation flags remain, metadata flags are cleared')
 
 if __name__ == '__main__':
     unittest.main()

@@ -39,7 +39,16 @@ export class SessionParser {
       if (!this.active.recoverable) { this.active.byModel = {}; this.active.metrics = {}; this.active.partial = true; }
       this.onStart({ ...this.active });
     }
-    for (const input of this.questions.values()) this.onInteraction(input);
+    for (const input of this.questions.values()) {
+      // An async call in a replay may be an old, abandoned question, even
+      // when its turn has no recorded end. The transcript cannot establish
+      // that it is still displayed;
+      // remove any persisted notice rather than recreating it on every replay.
+      // Keep the call in memory so a later structured answer can resolve it.
+      if (input.tool_name.endsWith('_async')) {
+        this.onInteraction({ ...input, hook_event_name: 'PostToolUse' });
+      } else this.onInteraction(input);
+    }
   }
   accept(line) {
     if (this.skipHistory > 0) { this.skipHistory--; return; }

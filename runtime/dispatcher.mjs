@@ -12,7 +12,7 @@ import { createInsightsService } from './insights.mjs';
 import { pricingSchedule } from './pricing-schedule.mjs';
 import { importWorkshop, exportWorkshop } from '../lib/workshop.mjs';
 import { createCodexQuotaService } from './codex-quota.mjs';
-import { readInteractionNotices } from './interaction-notices.mjs';
+import { readInteractionNotices, clearHistoricalAsyncNotices } from './interaction-notices.mjs';
 import { createModelUsageService } from './model-usage.mjs';
 
 export const UI_ORIGIN = 'whale://widget';
@@ -28,6 +28,7 @@ const configurationFailure = error => {
 // Dispatch original resource handlers entirely in process; no HTTP listener exists.
 export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dataDir, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, modelUsageService = null, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
+  clearHistoricalAsyncNotices(interactionDataDir);
   migrateData(dataDir);
   const whale = service || new WhaleService({ dataDir, ...(fetchImpl ? { fetchImpl } : {}) });
   const fx = createFxService({ dataDir, ...(fxFetchImpl ? { fetchImpl: fxFetchImpl } : {}) });

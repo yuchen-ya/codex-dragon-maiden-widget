@@ -18,6 +18,18 @@ function files(directory) {
 
 export function interactionDirectory(dataDir) { return path.join(dataDir, 'interaction-notices'); }
 
+// Old async notices are not proof of a still-displayed question. Bootstrap
+// cleanup must cover notices whose transcripts are outside the recent-file scan.
+export function clearHistoricalAsyncNotices(dataDir, startedAt = Date.now()) {
+  const directory = interactionDirectory(dataDir);
+  for (const name of files(directory)) {
+    const file = path.join(directory, name), item = readJson(file, null);
+    if (item?.asyncQuestion !== true || Number.isFinite(item.createdAt) && item.createdAt >= startedAt) continue;
+    try { fs.unlinkSync(file); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+}
+
 export function readInteractionNotices(dataDir, codexHome) {
   const directory = interactionDirectory(dataDir);
   const notices = files(directory).map(name => readJson(path.join(directory, name), null)).filter(Boolean)

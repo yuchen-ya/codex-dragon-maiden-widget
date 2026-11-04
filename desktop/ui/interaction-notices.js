@@ -1,6 +1,6 @@
 (function (host) {
   'use strict';
-  function create({ fetch: request = host.fetch.bind(host), storage = host.localStorage, enabled, show, clear }) {
+  function create({ fetch: request = host.fetch.bind(host), storage = host.localStorage, enabled, show, clear, onPending = () => {} }) {
     const key = 'dshw-interaction-notified';
     let remembered = [];
     try { remembered = JSON.parse(storage.getItem(key) || '[]'); }
@@ -30,6 +30,7 @@
         } catch (error) { lastError = error; return; }
         const notices = data.notices.filter(item => item && typeof item.id === 'string' && ['question', 'approval'].includes(item.kind));
         pending = new Set(notices.map(item => item.id)); lastError = null;
+        onPending(pending.size > 0);
         if (current && !pending.has(current)) { const id = current; current = null; clear(id); }
         if (!enabled()) return;
         const item = notices.find(notice => !seen.has(notice.id) && notice.id !== current);

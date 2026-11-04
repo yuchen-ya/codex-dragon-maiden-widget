@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { acceptInteractionHook, readInteractionNotices } from '../runtime/interaction-notices.mjs';
+import { acceptInteractionHook, readInteractionNotices, clearHistoricalAsyncNotices } from '../runtime/interaction-notices.mjs';
 import { installInteractionHooks } from '../scripts/install-interaction-hooks.mjs';
 import { interactionHooks } from '../scripts/install-interaction-hooks.mjs';
 import { createDispatcher } from '../runtime/dispatcher.mjs';
@@ -21,6 +21,21 @@ function directory(t) {
 }
 const question = event => ({ session_id: 'thread-a', turn_id: 'turn-a', tool_use_id: 'call-a', tool_name: 'request_user_input', hook_event_name: event, tool_input: { questions: [{ question: 'PRIVATE_QUESTION' }] } });
 const approval = event => ({ session_id: 'thread-b', turn_id: 'turn-b', tool_name: 'Bash', hook_event_name: event, tool_input: { command: 'PRIVATE_COMMAND', description: 'reason' } });
+
+test('startup removes old async notices even without a recent transcript and keeps new hooks and approvals', t => {
+  const root = directory(t);
+  const asyncQuestion = { ...question('PreToolUse'), tool_name: 'request_user_input_async' };
+  acceptInteractionHook(root, asyncQuestion, 100);
+  acceptInteractionHook(root, { ...asyncQuestion, tool_use_id: 'new' }, 300);
+  acceptInteractionHook(root, approval('PermissionRequest'), 100);
+  clearHistoricalAsyncNotices(root, 200);
+  const remaining = readInteractionNotices(root);
+  assert.equal(remaining.length, 2);
+  assert.equal(remaining.find(item => item.asyncQuestion)?.createdAt, 300);
+  assert.ok(remaining.some(item => item.kind === 'approval'));
+  clearHistoricalAsyncNotices(root, 200);
+  assert.deepEqual(readInteractionNotices(root), remaining);
+});
 
 test('question lifecycle uses call identity, deduplicates hooks and never stores question contents', t => {
   const root = directory(t);
@@ -204,12 +219,32 @@ test('async question stays pending across assistant completion, Stop and reply-t
   assert.deepEqual(readInteractionNotices(root), []);
 });
 
-test('restart restores unanswered async questions after a completed turn but never replays answered ones', t => {
+test('restart clears unverified historical async notices and never recreates them', t => {
   const root = directory(t), h = transcript();
   const ended = { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-a' } };
   h.parser.onInteraction = input => acceptInteractionHook(root, input);
-  h.parser.prime([h.call(), ended]);
+  h.parser.accept(h.call());
   assert.equal(readInteractionNotices(root).length, 1);
+  const accepted = { type: 'response_item', payload: { type: 'function_call_output', call_id: 'call-a', output: '{"accepted":true}' } };
+  h.parser.prime([accepted, ended]);
+  assert.deepEqual(readInteractionNotices(root), []);
+  assert.equal(h.parser.questions.size, 1);
+  const staleReplay = transcript();
+  staleReplay.parser.onInteraction = input => acceptInteractionHook(root, input);
+  staleReplay.parser.prime([staleReplay.call(), accepted, ended,
+    { type: 'event_msg', payload: { type: 'task_started', turn_id: 'later' } },
+    { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'later' } }]);
+  assert.deepEqual(readInteractionNotices(root), []);
+  staleReplay.parser.accept(staleReplay.reply(0));
+  assert.equal(staleReplay.parser.questions.size, 0);
+  const unended = transcript();
+  unended.parser.onInteraction = input => acceptInteractionHook(root, input);
+  unended.parser.prime([unended.call(), accepted]);
+  assert.deepEqual(readInteractionNotices(root), []);
+  const repeated = transcript();
+  repeated.parser.onInteraction = input => acceptInteractionHook(root, input);
+  repeated.parser.prime([repeated.call(), accepted]);
+  assert.deepEqual(readInteractionNotices(root), []);
   const replay = transcript();
   replay.parser.onInteraction = input => acceptInteractionHook(root, input);
   replay.parser.prime([replay.call(), ended, replay.reply(0)]);
@@ -222,26 +257,38 @@ test('restart restores unanswered async questions after a completed turn but nev
   assert.deepEqual(readInteractionNotices(root), []);
 });
 
-test('synchronous question completion resolves normally and replay emits only genuinely pending questions', () => {
+test('synchronous question completion resolves normally and replay restores an active synchronous question', () => {
   const h = transcript();
   h.parser.accept(h.call('request_user_input'));
   h.parser.accept({ type: 'response_item', payload: { type: 'function_call_output', call_id: 'call-a', output: '{"answers":{}}' } });
   assert.equal(h.parser.questions.size, 0);
   const replay = transcript(); replay.events.length = 0;
-  replay.parser.prime([replay.call(), { type: 'response_item', payload: { type: 'function_call_output', call_id: 'call-a', output: '{"accepted":true}' } }]);
+  replay.parser.prime([replay.call('request_user_input')]);
   assert.deepEqual(replay.events.map(item => item.hook_event_name), ['PreToolUse']);
 });
 
 const frontend = fs.readFileSync(new URL('../desktop/ui/interaction-notices.js', import.meta.url), 'utf8');
 function client(storage = new Map()) {
   let notices = [], fail = false, enabled = true;
-  const shown = [], cleared = [], box = { localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } };
+  const shown = [], cleared = [], pending = [], box = { localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } };
   vm.runInNewContext(frontend, box);
   const api = box.WhaleInteractionNotices.create({ storage: box.localStorage, enabled: () => enabled,
     fetch: async () => ({ ok: !fail, json: async () => ({ ok: true, notices }) }),
-    show(item, hooks) { shown.push({ item, hooks }); return true; }, clear: id => cleared.push(id) });
-  return { api, shown, cleared, storage, set: value => { notices = value; }, fail: value => { fail = value; }, enabled: value => { enabled = value; } };
+    show(item, hooks) { shown.push({ item, hooks }); return true; }, clear: id => cleared.push(id), onPending: value => pending.push(value) });
+  return { api, shown, cleared, pending, storage, set: value => { notices = value; }, fail: value => { fail = value; }, enabled: value => { enabled = value; } };
 }
+
+test('collapsed reminder indicator follows unresolved requests without consuming their display', async () => {
+  const h = client(); h.enabled(false);
+  h.set([{ id: 'question-collapsed', kind: 'question' }]);
+  await h.api.poll();
+  assert.deepEqual(h.pending, [true]); assert.equal(h.shown.length, 0);
+  h.enabled(true); await h.api.poll();
+  assert.equal(h.shown.length, 1); h.shown[0].hooks.shown();
+  await h.api.poll(); assert.equal(h.pending.at(-1), true, 'a shown question is still unresolved');
+  h.fail(true); await h.api.poll(); assert.equal(h.pending.at(-1), true, 'failed poll does not fabricate resolution');
+  h.fail(false); h.set([]); await h.api.poll(); assert.equal(h.pending.at(-1), false);
+});
 
 test('same pending request appears once, stays dismissed across polls and reloads, and new IDs still appear', async () => {
   const h = client(); h.set([{ id: 'question-1', kind: 'question' }]);

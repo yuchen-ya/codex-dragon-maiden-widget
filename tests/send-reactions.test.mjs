@@ -13,14 +13,14 @@ function result({ relation = 'unavailable', emotion = 'strong_positive', occasio
 }
 function fixture(t, decide = async () => result()) {
   let time = 100000, enabled = false, sourceCallbacks, blocked = false;
-  const calls = [], lifecycle = [];
-  const service = new SendReactions({ now: () => time, isBlocked: () => blocked,
+  const calls = [], lifecycle = [], diagnostics = [];
+  const service = new SendReactions({ now: () => time, isBlocked: () => blocked, diagnostics: record => diagnostics.push(record),
     connection: { store: { load: () => ({ enabled }) }, decide: async (...args) => { calls.push(args); return decide(...args); } },
     sourceFactory(callbacks) { sourceCallbacks = callbacks; return { start() { lifecycle.push('start'); }, stop() { lifecycle.push('stop'); }, status() { return { source: 'synthetic', suggestionSupport: false }; } }; },
   });
   t.after(() => service.close());
   const context = { visible: true, blocked: false };
-  return { service, calls, lifecycle, context,
+  return { service, calls, lifecycle, context, diagnostics,
     enable(value = true) { enabled = value; service.configure(); service.poll(context); },
     advance(ms) { time += ms; }, block(value) { blocked = value; },
     send(id = 'm1', text = '终于全做好啦，太开心了，可以收工！', extra = {}) {
@@ -43,9 +43,9 @@ test('user-only payload contains exactly this short message; long and stale mess
   await f.send('short', ' 好开心！ ');
   assert.deepEqual(f.calls[0][0], { route: 'user_only', user_message: '好开心！' });
   await f.send('long', '😀'.repeat(301)); await f.send('empty', '  ');
-  await f.send('stale', '开心', { at: 97999 });
+  await f.send('stale', '开心', { at: 94999 });
   assert.equal(f.calls.length, 1);
-  await f.send('boundary', '😀'.repeat(300)); assert.equal(f.calls.length, 2);
+  await f.send('boundary', '😀好'.repeat(150)); assert.equal(f.calls.length, 2);
 });
 
 test('trusted paired snapshot preserves negation and drops oversized recommendations', async t => {
@@ -71,7 +71,7 @@ test('new message, disable/re-enable and hiding prevent late model results from 
 test('expired results, menu conflicts and real interaction reminders never appear as reactions', async t => {
   let resolve;
   const f = fixture(t, () => new Promise(done => { resolve = done; })); f.enable();
-  let pending = f.send(); f.advance(2000); resolve(result()); await pending;
+  let pending = f.send(); f.advance(5000); resolve(result()); await pending;
   assert.equal(f.service.poll(f.context).notice, null);
   pending = f.send('blocked'); f.block(true); resolve(result()); await pending;
   assert.equal(f.service.poll(f.context).notice, null);
@@ -90,15 +90,20 @@ test('an observed transient business reminder permanently invalidates the old ju
   assert.equal(f.service.poll(f.context).notice, null);
 });
 
-test('only actual presentation starts cooldown; rejected notices are discarded and never queued', async t => {
+test('actual presentation starts cooldown before spending money; later sends rotate lines', async t => {
   const f = fixture(t); f.enable(); await f.send();
   let notice = f.service.poll(f.context).notice; assert.ok(notice);
   f.service.acknowledge({ id: notice.id, shown: false });
   assert.equal(f.service.poll(f.context).notice, null);
   await f.send('retry'); notice = f.service.poll(f.context).notice; assert.ok(notice);
   f.service.acknowledge({ id: notice.id, shown: true });
+  const paidCalls = f.calls.length;
   f.advance(100); await f.send('cooldown'); assert.equal(f.service.poll(f.context).notice, null);
-  f.advance(10000); await f.send('same-line'); assert.equal(f.service.poll(f.context).notice, null);
+  assert.equal(f.calls.length, paidCalls);
+  assert.ok(f.diagnostics.some(item => item.reason === 'cooldown'));
+  f.advance(10000); await f.send('same-occasion');
+  notice = f.service.poll(f.context).notice;
+  assert.ok(notice); assert.notEqual(notice.text, '搞定收工，本龙已经把摇尾巴模式开满啦！');
 });
 
 test('request rate is bounded without delayed replay', async t => {
@@ -138,4 +143,74 @@ test('malformed model answers are errors, not user intent or defaults', () => {
   assert.throws(() => chooseReaction(malformed, { route: 'user_only' }), error => error.code === 'RESPONSE');
   const unknown = result(); unknown.answers.emotion.choice = 'surprise';
   assert.throws(() => chooseReaction(unknown, { route: 'user_only' }), error => error.code === 'RESPONSE');
+});
+
+test('ordinary work occasions respond without strong emotions and rotate factual lines', () => {
+  for (const occasion of ['revision', 'problem', 'accepted', 'frustration', 'task', 'discussion', 'finished', 'rest']) {
+    const judgment = result({ emotion: 'weak_or_none', occasion });
+    const first = chooseReaction(judgment, { route: 'user_only' });
+    assert.ok(first, occasion);
+    const second = chooseReaction(judgment, { route: 'user_only' }, first.id);
+    assert.ok(second); assert.notEqual(second.id, first.id);
+    assert.equal(chooseReaction(result({ emotion: 'weak_or_none', occasion, holdBack: 0.8 }), { route: 'user_only' }), null);
+  }
+  const uncertain = result({ occasion: 'task', emotion: 'weak_or_none' });
+  const labels = Object.keys(REACTION_QUESTIONS.occasion.criteria);
+  uncertain.answers.occasion.probabilities = Object.fromEntries(labels.map(label => [label, label === 'task' ? 0.54 : 0.46 / (labels.length - 1)]));
+  assert.equal(chooseReaction(uncertain, { route: 'user_only' }), null);
+});
+
+test('a 3-second judgment is usable; diagnostics distinguish decision, shown and expiry without text', async t => {
+  const f = fixture(t, async () => { f.advance(3000); return result({ occasion: 'revision', emotion: 'weak_or_none' }); });
+  f.enable();
+  const privateText = 'PRIVATE_MESSAGE_DO_NOT_LOG';
+  await f.send('private-id', privateText);
+  const notice = f.service.poll(f.context).notice;
+  assert.ok(notice);
+  assert.equal(f.calls[0][2].timeoutMs, 4750);
+  f.service.acknowledge({ id: notice.id, shown: true });
+  assert.ok(f.diagnostics.some(item => item.event === 'decision' && item.elapsedMs === 3000));
+  assert.ok(f.diagnostics.some(item => item.event === 'shown'));
+  const trace = f.diagnostics.find(item => item.event === 'shown').trace;
+  assert.ok(f.diagnostics.some(item => item.event === 'request-started' && item.trace === trace));
+  assert.ok(!JSON.stringify(f.diagnostics).includes(privateText));
+  assert.ok(!JSON.stringify(f.diagnostics).includes('private-id'));
+  f.advance(10000); await f.send('expiry'); f.advance(2000);
+  assert.equal(f.service.poll(f.context).notice, null);
+  assert.ok(f.diagnostics.some(item => item.reason === 'display-expired'));
+});
+
+test('diagnostics distinguish policy silence, provider error and cancellation', async t => {
+  const f = fixture(t, async () => result({ occasion: 'none', emotion: 'weak_or_none' }));
+  f.enable(); await f.send();
+  assert.ok(f.diagnostics.some(item => item.event === 'decision' && item.reason === 'no-matching-occasion'));
+  let finish;
+  f.service.connection.decide = () => new Promise(resolve => { finish = resolve; });
+  const pending = f.send('waiting');
+  f.service.poll({ visible: false, blocked: false }); finish(result()); await pending;
+  assert.ok(f.diagnostics.some(item => item.event === 'cancelled' && item.reason === 'hidden'));
+  f.service.poll(f.context);
+  f.service.connection.decide = async () => { throw new JevConnectionError('NETWORK', 'PRIVATE_ERROR_BODY'); };
+  await f.send('failed');
+  assert.ok(f.diagnostics.some(item => item.event === 'request-error' && item.code === 'NETWORK'));
+  assert.ok(!JSON.stringify(f.diagnostics).includes('PRIVATE_ERROR_BODY'));
+});
+
+test('numbers and secrets are filtered before payment, upload and recommendation comparison', async t => {
+  const f = fixture(t); f.enable();
+  const secret = 'sk-' + 'FAKEsecret123'.repeat(3);
+  for (const [index, value] of ['123456789012345', '1234', secret, 'api_key="short-secret"'].entries()) {
+    await f.send('sensitive-only-' + index, value);
+  }
+  assert.equal(f.calls.length, 0);
+  assert.ok(f.diagnostics.filter(item => item.reason === 'no-analyzable-text').length >= 4);
+  await f.send('mixed', '请配置 ' + secret + '，编号 123456789，端口 7897。', { recommendations: ['请配置别的'] });
+  const state = f.calls[0][0];
+  assert.equal(state.route, 'user_only');
+  assert.equal(state.user_message, '请配置 [已过滤]，编号 [已过滤]，端口 7897。');
+  await f.send('recommendation-secret', '继续配置', { recommendations: [secret] });
+  assert.equal(f.calls[1][0].route, 'user_only');
+  assert.ok(!JSON.stringify(f.diagnostics).includes(secret));
+  assert.ok(!JSON.stringify(f.diagnostics).includes('123456789'));
+  assert.ok(f.diagnostics.some(item => item.event === 'input-filtered' && item.numbers === 1 && item.secrets === 1));
 });

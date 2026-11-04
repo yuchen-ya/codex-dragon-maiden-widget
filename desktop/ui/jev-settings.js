@@ -18,7 +18,7 @@
     const dialog = element('dialog'); dialog.className = 'whale-v3-dialog whale-jev-dialog';
     opened = dialog;
     dialog.append(element('h2', 'Jev 服务与网络'));
-    dialog.append(element('p', '开启后，合格的短消息和发送前可用的推荐文本会通过所选网络发送给 Jev 服务判断。'));
+    dialog.append(element('p', '开启后，合格的短消息会通过所选网络发送给 Jev 服务判断。带截图时只分析附带的用户短文字，不上传图片。'));
     const fields = element('fieldset'); fields.disabled = true;
     const controls = {};
     function field(name, label, type = 'text') {
@@ -32,6 +32,15 @@
     const enabledRow = element('label'); enabledRow.className = 'whale-jev-enabled';
     const enabled = element('input'); enabled.type = 'checkbox';
     enabledRow.append(enabled, element('span', '发送后情境反应（Jev）')); fields.append(enabledRow);
+    const warning = element('aside'); warning.className = 'whale-jev-risk';
+    warning.append(element('strong', '开启前请了解'));
+    const risks = element('ul');
+    for (const text of [
+      '使用云端模型会产生计费；未显示气泡的判断请求也可能收费。',
+      '短文字会发送给所选服务商。自动过滤长数字和疑似密钥不能保证移除所有敏感信息，仍存在隐私泄漏风险。',
+      '频繁主动说话可能分散注意力、降低工作效率；可随时关闭此功能，收起桌宠后完全免打扰。'
+    ]) risks.append(element('li', text));
+    warning.append(risks); fields.append(warning);
     const provider = field('provider', '服务商', 'select');
     const endpoint = field('endpoint', '完整接口地址', 'url');
     endpoint.placeholder = 'https://服务地址/决策接口路径'; endpoint.maxLength = 4096;
@@ -91,7 +100,7 @@
       if (!dialog.isConnected) return;
       presets = result.presets;
       sourceStatus.textContent = result.reactionStatus?.source?.suggestionSupport === false
-        ? '本机可监听新发送的短消息；Codex 输入框自动草稿尚无可读取接口，当前只启用强情绪反应。'
+        ? '本机可监听新发送的短消息，对问题反馈、返工、方案认可、任务安排和情绪作简短反应；Codex 输入框自动草稿尚无可读取接口。'
         : '';
       if (result.reactionStatus?.error) sourceStatus.textContent = result.reactionStatus.error;
       for (const [value, preset] of Object.entries(presets)) provider.add(new Option(preset.name, value));

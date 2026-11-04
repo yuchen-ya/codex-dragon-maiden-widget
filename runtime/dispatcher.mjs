@@ -17,6 +17,7 @@ import { createModelUsageService } from './model-usage.mjs';
 import { JevConnection, JevConnectionError } from './jev-connection.mjs';
 import { SendingSource } from './send-events.mjs';
 import { SendReactions } from './send-reactions.mjs';
+import { ReactionLog } from './reaction-log.mjs';
 
 export const UI_ORIGIN = 'whale://widget';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
@@ -39,7 +40,9 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
   const modelUsage = modelUsageService || createModelUsageService(whale.config, { dataDir });
   const quota = createCodexQuotaService({ codexHome: whale.config.codexHome });
   const jev = jevConnection || new JevConnection({ dataDir, env: whale.config.env });
+  const reactionLog = new ReactionLog({ dataDir });
   const reactions = new SendReactions({ connection: jev,
+    diagnostics: record => reactionLog.write(record),
     sourceFactory: sendSourceFactory || (callbacks => new SendingSource({ codexHome: whale.config.codexHome || CODEX_HOME, ...callbacks })),
     isBlocked: () => statusInfo().visible === false || readInteractionNotices(interactionDataDir).length > 0 });
   reactions.configure();

@@ -59,7 +59,7 @@ macOS 已在 Apple Silicon 实测，Intel Mac 尚未实测。Mac 直接使用解
 ```sh
 npm test
 node scripts/check-package.mjs
-python scripts/build-release.py --release-tag v0.1.8
+python scripts/build-release.py --release-tag v0.1.9
 ```
 
 产物位于 `dist/`，构建脚本不会发布。开发隔离与平台测试见 [贡献指南](AGENTS.md)。

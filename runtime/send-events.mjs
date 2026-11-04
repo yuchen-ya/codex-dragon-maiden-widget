@@ -1,15 +1,38 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
+import { randomUUID } from 'node:crypto';
 
 const MAX_LINE = 8 * 1024 * 1024;
 const normalize = text => text.replace(/\r\n/g, '\n').trim().normalize('NFC');
 
+function submittedText(content, kinds) {
+  if (content.length !== kinds.length) return null;
+  const parts = [];
+  for (let index = 0; index < content.length; index++) {
+    const part = content[index];
+    if (kinds[index] === 'user.image' && part.type === 'input_image') continue;
+    if (kinds[index] !== 'user.text' || part.type !== 'input_text' || typeof part.text !== 'string') return null;
+    let text = part.text.trim();
+    // Codex wraps attached images in separate text/image/text blocks. Only
+    // the user's request is eligible; attachment paths and image data are not.
+    if (/^<image\s[^>]*>$/.test(text) || text === '</image>') continue;
+    if (text.startsWith('# Files mentioned by the user:')) {
+      const marker = '\n## My request:';
+      const start = text.indexOf(marker);
+      if (start < 0) return null;
+      text = text.slice(start + marker.length).trim();
+    }
+    parts.push(text);
+  }
+  return normalize(parts.join('\n'));
+}
+
 // The rollout provides submitted messages, but no evidence that composer
 // suggestions were actually displayed. Never infer suggestions from tool calls.
 export class SendingSource {
-  constructor({ codexHome, onSend, onContext = () => {}, onError = () => {}, now = Date.now }) {
-    Object.assign(this, { root: path.join(codexHome, 'sessions'), onSend, onContext, onError, now });
+  constructor({ codexHome, onSend, onContext = () => {}, onError = () => {}, onDiagnostic = () => {}, now = Date.now }) {
+    Object.assign(this, { root: path.join(codexHome, 'sessions'), onSend, onContext, onError, onDiagnostic, now });
     this.files = new Map();
     this.seen = new Set();
     this.error = '';
@@ -37,6 +60,7 @@ export class SendingSource {
       // The feature becomes ready only after the baseline is complete. Writes
       // included in that baseline belong to initialization, not live sends.
       this.enabledAt = this.now();
+      this.onDiagnostic({ event: 'source-started', baselineFiles: this.files.size });
     } catch (error) {
       this.stop();
       this.fail(error);
@@ -155,15 +179,16 @@ export class SendingSource {
     if (this.seen.has(key)) return;
     this.seen.add(key);
     if (this.seen.size > 8192) this.seen.delete(this.seen.values().next().value);
-    const isText = meta.content_item_kinds.length === 1 && meta.content_item_kinds[0] === 'user.text' &&
-      item.content.length === 1 && item.content[0].type === 'input_text' && typeof item.content[0].text === 'string';
-    const raw = isText ? item.content[0].text : '';
+    const trace = randomUUID();
     this.onContext({ type: 'send', id, threadId, at });
-    if (isText && /^\s*<send_user_message_question_reply>/.test(raw)) return;
-    if (!isText) return;
-    const text = normalize(raw);
-    if (!text || Array.from(text).length > 300) return;
-    Promise.resolve(this.onSend({ id, threadId, at, text })).catch(error => this.fail(error));
+    const text = submittedText(item.content, meta.content_item_kinds);
+    const characters = text === null ? 0 : Array.from(text).length;
+    const images = meta.content_item_kinds.filter(kind => kind === 'user.image').length;
+    this.onDiagnostic({ event: 'observed', trace, characters, images, ageMs: Math.max(0, this.now() - at) });
+    const reason = text === null ? 'unsupported-content' : /^\s*<send_user_message_question_reply>/.test(text) ? 'question-form' :
+      !text ? 'empty' : characters > 300 ? 'too-long' : '';
+    if (reason) { this.onDiagnostic({ event: 'skipped', trace, reason }); return; }
+    Promise.resolve(this.onSend({ id, threadId, at, text, trace })).catch(error => this.fail(error));
   }
 }
 

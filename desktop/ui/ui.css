@@ -43,6 +43,9 @@ html.desktop dialog::backdrop,html.desktop .whale-v3-dialog::backdrop{background
 .whale-jev-dialog fieldset input,.whale-jev-dialog fieldset select{box-sizing:border-box;min-width:0;width:100%;padding:7px 9px;border:1px solid #bdc9df;border-radius:6px;font:inherit;color:inherit;background:#fff}
 .whale-jev-dialog small{display:block;white-space:normal;color:#526485}
 .whale-jev-dialog .dialog-actions{display:flex;gap:8px;justify-content:flex-end}
+.whale-jev-dialog .whale-jev-risk{padding:10px 12px;border:1px solid #edb6bb;border-radius:8px;background:#fff0f1;color:#8a3540;line-height:1.55;white-space:normal}
+.whale-jev-dialog .whale-jev-risk ul{margin:6px 0 0;padding-left:20px}
+.whale-jev-dialog .whale-jev-risk li+li{margin-top:5px}
 .dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-bshape,.dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-b1,.dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-b2{transition:opacity .1s ease,transform .1s ease;transition-delay:0s}
 .dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-text{transition:opacity .1s ease .04s}
 html.desktop [class*="mask"]{background:transparent!important;backdrop-filter:none!important}

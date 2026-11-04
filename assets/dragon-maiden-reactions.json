@@ -1,0 +1,50 @@
+{
+  "source": "用户于 2026-11-03 提供，台词原文保留",
+  "lines": [
+    {
+      "id": "proud_1",
+      "tone": "proud",
+      "text": "我就猜到老大这步会选这个，默契还在嘛。"
+    },
+    {
+      "id": "proud_2",
+      "tone": "proud",
+      "text": "看吧，老大的下一步打算，早就被我看穿啦。"
+    },
+    {
+      "id": "proud_3",
+      "tone": "proud",
+      "text": "哼，跟老大混久了，本龙现在都会抢答了。"
+    },
+    {
+      "id": "celebrate_1",
+      "tone": "celebrate",
+      "text": "终于跑通啦，看老大松口气，我也跟着舒坦。"
+    },
+    {
+      "id": "celebrate_2",
+      "tone": "celebrate",
+      "text": "干得漂亮，这块硬骨头啃下来必须记头功。"
+    },
+    {
+      "id": "celebrate_3",
+      "tone": "celebrate",
+      "text": "搞定收工，本龙已经把摇尾巴模式开满啦！"
+    },
+    {
+      "id": "support_1",
+      "tone": "support",
+      "text": "累了就先靠会儿，这摊子事先放着，我在呢。"
+    },
+    {
+      "id": "support_2",
+      "tone": "support",
+      "text": "今天已经很不容易了，老大先喘口气，不急着改。"
+    },
+    {
+      "id": "support_3",
+      "tone": "support",
+      "text": "代码先晾着，本龙分半截尾巴给老大充充电。"
+    }
+  ]
+}

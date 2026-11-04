@@ -82,6 +82,10 @@ app.on('gpu-info-update', () => {
   fs.promises.writeFile(path.join(dataDir, 'render-status.json'), JSON.stringify(gpuStatus, null, 2)).catch(() => {});
 });
 function invalidate() { if (window && !window.isDestroyed()) { presents++; window.webContents.invalidate(); } }
+function invalidateReactions() {
+  dispatcher?.reactions.invalidate();
+  if (window && !window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send('whale-reaction-invalidate');
+}
 function applyWindowShape(rects) {
   if (!usesWindowShape || quitting || !window || window.isDestroyed() || window.webContents.isDestroyed()) return false;
   const shape = validateWindowShape(rects, window.getContentBounds());
@@ -195,8 +199,10 @@ async function openWebLink(value, gestureRequired = true) {
 }
 async function setHost(host) {
   if (!host || typeof host.hostAlive !== 'boolean') return;
+  const wasHostVisible = lastHost?.visible;
   if (Number.isSafeInteger(host.serial)) { if (host.serial <= hostSequence) return; hostSequence = host.serial; }
   hostHeartbeat = Date.now(); lastHost = host;
+  if (desktopMode === 'follow-codex' && wasHostVisible === true && host.visible === false) invalidateReactions();
   // Record the observed state before any lifecycle recovery can change it.
   if (usesWindowShape) { try { visibilityRecorder.sample(); } catch {} }
   if (host.monitorExit) { app.quit(); return; }
@@ -288,7 +294,7 @@ else {
     if (!fixture) process.stdout.write(JSON.stringify({ overlayHandle: window.getNativeWindowHandle().readBigUInt64LE().toString() }) + '\n');
     window.setIgnoreMouseEvents(true, { forward: !usesWindowShape });
     window.on('show', () => { diagnose('window-shown'); invalidate(); sendCursor(true); });
-    window.on('hide', () => diagnose('window-hidden'));
+    window.on('hide', () => { diagnose('window-hidden'); invalidateReactions(); });
     window.on('resize', () => {
       invalidate();
       // Keep the previous region while the renderer lays out the new viewport.

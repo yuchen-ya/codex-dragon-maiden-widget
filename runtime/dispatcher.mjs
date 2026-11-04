@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
-import { ROOT, DATA_HOME, VERSION, readJson, writeJson } from './paths.mjs';
+import { ROOT, DATA_HOME, CODEX_HOME, VERSION, readJson, writeJson } from './paths.mjs';
 import { WhaleService } from './service.mjs';
 import { SessionMonitor } from './session-monitor.mjs';
 import { createWidgetHost } from '../lib/widget-host.mjs';
@@ -14,6 +14,9 @@ import { importWorkshop, exportWorkshop } from '../lib/workshop.mjs';
 import { createCodexQuotaService } from './codex-quota.mjs';
 import { readInteractionNotices, clearHistoricalAsyncNotices } from './interaction-notices.mjs';
 import { createModelUsageService } from './model-usage.mjs';
+import { JevConnection, JevConnectionError } from './jev-connection.mjs';
+import { SendingSource } from './send-events.mjs';
+import { SendReactions } from './send-reactions.mjs';
 
 export const UI_ORIGIN = 'whale://widget';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
@@ -26,7 +29,7 @@ const configurationFailure = error => {
 };
 
 // Dispatch original resource handlers entirely in process; no HTTP listener exists.
-export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dataDir, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, modelUsageService = null, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
+export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dataDir, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, modelUsageService = null, jevConnection = null, sendSourceFactory = null, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
   clearHistoricalAsyncNotices(interactionDataDir);
   migrateData(dataDir);
@@ -35,6 +38,11 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
   const insights = createInsightsService(whale.config);
   const modelUsage = modelUsageService || createModelUsageService(whale.config, { dataDir });
   const quota = createCodexQuotaService({ codexHome: whale.config.codexHome });
+  const jev = jevConnection || new JevConnection({ dataDir, env: whale.config.env });
+  const reactions = new SendReactions({ connection: jev,
+    sourceFactory: sendSourceFactory || (callbacks => new SendingSource({ codexHome: whale.config.codexHome || CODEX_HOME, ...callbacks })),
+    isBlocked: () => statusInfo().visible === false || readInteractionNotices(interactionDataDir).length > 0 });
+  reactions.configure();
   const displayModeFile = path.join(dataDir, 'display-mode.json');
   const displayMode = () => 'subscription';
   const routes = new Map(), effects = [];
@@ -90,6 +98,39 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
         return jsonResult(200, { recent: whale.config.resolve().setting.monitorSessions === false ? null : whale.recentGeneration || whale.lastTurn().recentGeneration || null });
       }
       if (url.pathname === '/api/interaction-notices') return method === 'GET' ? jsonResult(200, { ok: true, notices: readInteractionNotices(interactionDataDir, whale.config.codexHome) }) : jsonResult(405, { ok: false });
+      if (url.pathname === '/api/reaction-notices') {
+        if (method !== 'GET') return jsonResult(405, { ok: false });
+        return jsonResult(200, reactions.poll({ visible: url.searchParams.get('visible') === '1', blocked: url.searchParams.get('blocked') !== '0' }));
+      }
+      if (url.pathname === '/api/reaction-notices/ack') {
+        if (method !== 'POST') return jsonResult(405, { ok: false });
+        if (bytes.length > 1024) return jsonResult(413, { ok: false });
+        reactions.acknowledge(parsed()); return jsonResult(200, { ok: true });
+      }
+      if (url.pathname === '/api/reaction-notices/invalidate') {
+        if (method !== 'POST') return jsonResult(405, { ok: false });
+        reactions.invalidate(); return jsonResult(200, { ok: true });
+      }
+      if (url.pathname === '/api/jev-settings' || url.pathname === '/api/jev-test' || url.pathname === '/api/jev-test/cancel') {
+        if (bytes.length > 16384) return jsonResult(413, { ok: false, error: 'Jev 设置内容过大' });
+        try {
+          if (url.pathname === '/api/jev-settings') {
+            if (method === 'GET') return jsonResult(200, { ok: true, ...jev.info(), reactionStatus: reactions.status() });
+            if (method === 'PUT') {
+              const saved = jev.save(parsed()); reactions.configure();
+              return jsonResult(200, { ok: true, ...saved, reactionStatus: reactions.status() });
+            }
+          } else if (method === 'POST') {
+            if (url.pathname.endsWith('/cancel')) { jev.cancel(parsed().requestId); return jsonResult(200, { ok: true }); }
+            const { requestId, ...settings } = parsed();
+            return jsonResult(200, await jev.test(settings, requestId));
+          }
+          return jsonResult(405, { ok: false });
+        } catch (error) {
+          if (error instanceof JevConnectionError) return jsonResult(400, { ok: false, code: error.code, error: error.message });
+          return configurationFailure(error);
+        }
+      }
       if (url.pathname === '/api/account-notices') return method === 'GET' ? jsonResult(200, whale.accountNotices()) : jsonResult(405, {ok:false});
       if (url.pathname === '/api/account-notices/ack') return method === 'POST' ? jsonResult(200, whale.ackAccountNotices(parsed().ids)) : jsonResult(405, {ok:false});
       if (url.pathname === '/api/pricing' && method === 'GET') return jsonResult(200, {ok:true,...pricingSchedule(whale.config.resolve())});
@@ -157,6 +198,8 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
       uiFiles['/dragon-maiden-quotes.js']='dragon-maiden-quotes.js';
       uiFiles['/interaction-notices.js']='interaction-notices.js';
       uiFiles['/balance-view.js']='balance-view.js';
+      uiFiles['/jev-settings.js']='jev-settings.js';
+      uiFiles['/reaction-notices.js']='reaction-notices.js';
       let file;
       if (Object.hasOwn(uiFiles, url.pathname)) file = path.join(ROOT, 'desktop', 'ui', uiFiles[url.pathname]);
       else if (url.pathname.startsWith('/assets/')) {
@@ -187,6 +230,8 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
   function close() {
     if (closeJob) return closeJob;
     closing = true; clearInterval(timer);
+    reactions.close();
+    jev.close();
     closeJob = (async () => {
       const failures = [];
       insights.close();
@@ -203,5 +248,5 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
     })();
     return closeJob;
   }
-  return { dispatch, whale, watcher, close };
+  return { dispatch, whale, watcher, reactions, close };
 }

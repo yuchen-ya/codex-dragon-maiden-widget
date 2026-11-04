@@ -90,6 +90,9 @@
     const row = document.createElement('div'); row.className = 'dshwv-menu-row';
     const feedback = text(row, 'button', '音效与手感'); feedback.className = 'dshwv-sound';
     feedback.onclick = () => window.WhaleFeedback.open(); container.append(row);
+    const jevRow = document.createElement('div'); jevRow.className = 'dshwv-menu-row';
+    const jev = text(jevRow, 'button', 'Jev 服务与网络'); jev.className = 'dshwv-sound';
+    jev.onclick = () => window.WhaleJevSettings.open(); container.append(jevRow);
     const usageRow = document.createElement('div'); usageRow.className = 'dshwv-menu-row';
     const insights = text(usageRow, 'button', '用量明细'); insights.className = 'dshwv-sound';
     insights.onclick = open; container.append(usageRow);

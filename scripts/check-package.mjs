@@ -18,6 +18,10 @@ for (const name of ['../runtime/interaction-notices.mjs', '../runtime/approval-c
 }
 await import('../runtime/approval-context.mjs');
 await import('../runtime/dispatcher.mjs');
+if (!fs.existsSync(fileURLToPath(new URL('../desktop/ui/jev-settings.js', import.meta.url)))) throw new Error('Jev settings UI is missing');
+for (const file of ['../desktop/ui/reaction-notices.js', '../assets/dragon-maiden-reactions.json']) {
+  if (!fs.existsSync(fileURLToPath(new URL(file, import.meta.url)))) throw new Error('Reaction dependency is missing: ' + file);
+}
 await import('../runtime/model-usage.mjs');
 await import('../runtime/generation-metrics.mjs');
 if (!fs.existsSync(fileURLToPath(new URL('../vendor/codex-usage-dashboard/LICENSE', import.meta.url)))) throw new Error('Usage dashboard license is missing');

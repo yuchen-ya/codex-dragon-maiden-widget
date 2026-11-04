@@ -25,6 +25,13 @@ html[data-whale-cursor=grab]{cursor:grab}html[data-whale-cursor=grabbing],html[d
 /* Compact native companion surfaces. No viewport-sized dimming or blur. */
 :root{--teal:#4259b0}
 html.desktop dialog::backdrop,html.desktop .whale-v3-dialog::backdrop{background:transparent;backdrop-filter:none}
+.whale-jev-dialog fieldset{display:flex;flex-direction:column;align-items:stretch;padding:12px}
+.whale-jev-dialog fieldset label{display:flex;flex-direction:column;gap:4px}
+.whale-jev-dialog fieldset input,.whale-jev-dialog fieldset select{box-sizing:border-box;min-width:0;width:100%;padding:7px 9px;border:1px solid #bdc9df;border-radius:6px;font:inherit;color:inherit;background:#fff}
+.whale-jev-dialog small{display:block;white-space:normal;color:#526485}
+.whale-jev-dialog .dialog-actions{display:flex;gap:8px;justify-content:flex-end}
+.dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-bshape,.dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-b1,.dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-b2{transition:opacity .1s ease,transform .1s ease;transition-delay:0s}
+.dshwv-pop.dshwv-reaction.dshwv-pop-open .dshwv-text{transition:opacity .1s ease .04s}
 html.desktop [class*="mask"]{background:transparent!important;backdrop-filter:none!important}
 html.desktop .dshwv-menu{width:304px;min-width:0;max-width:calc(100vw - 16px);max-height:min(600px,calc(100vh - 24px));display:flex!important;flex-direction:column;overflow:hidden!important;padding:12px;background:#fff;border:1px solid #dce2ef;border-radius:16px;box-shadow:0 5px 14px #202e4b24;color:#28344d;transition:opacity .12s ease;transform:none!important}
 html.desktop .dshwv-menuview{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-width:thin;overscroll-behavior:contain;padding:0 2px}
@@ -70,3 +77,6 @@ html.desktop .icon-button:focus-visible{outline:2px solid #8497d3;border-radius:
 .desktop .dshwv-frame>.dshwv-trow,.desktop .dshwv-frame>.dshwv-label,.desktop .dshwv-frame>.dshwv-amount,.desktop .dshwv-frame>.dshwv-hint{max-width:100%!important;white-space:pre-wrap!important;overflow-wrap:anywhere;word-break:break-word}
 .desktop .dshwv-frame>.dshwv-mimg,.desktop .dshwv-frame>.dshwv-gif{max-width:100%;object-fit:contain}
 .model-usage-range{align-items:center;margin:12px 0 18px!important}.model-usage-range select{width:auto;max-width:170px;margin:0}.model-usage-card{margin:0 0 18px;padding:0 0 16px;border-bottom:1px solid #e8edf4}.model-usage-heading{display:flex;justify-content:space-between;align-items:baseline;gap:14px;font-size:16px;font-variant-numeric:tabular-nums}.model-usage-heading strong:first-child{min-width:0;overflow-wrap:anywhere}.model-usage-heading strong:last-child{white-space:nowrap}.model-usage-list .model-usage-card progress{display:block;height:9px;margin:10px 0;accent-color:var(--model-color);border:0;border-radius:8px;overflow:hidden}.model-usage-card progress::-webkit-progress-bar{background:#eef0f5;border-radius:8px}.model-usage-card progress::-webkit-progress-value{background:var(--model-color);border-radius:8px}.model-usage-card p{margin:6px 0;color:#66718a;line-height:1.8;font-size:12px}.model-usage-card small{font-size:11px;color:#8790a3}
+
+.whale-jev-dialog fieldset label.whale-jev-enabled{flex-direction:row;align-items:center;gap:8px}
+.whale-jev-dialog fieldset .whale-jev-enabled input{width:auto}

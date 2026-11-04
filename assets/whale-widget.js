@@ -8252,6 +8252,8 @@
         finally { bubbleBuilding = false; bindBubbleParts(bubbleFrames.front); }
       }, function () {
         if (entry !== bubbleSceneEpoch || bubbleScene !== scene) return;
+        if (kind === 'reaction') bubbleBox.classList.add('dshwv-reaction');
+        else bubbleBox.classList.remove('dshwv-reaction');
         bubbleBox.classList.add('dshwv-pop-open');
         WhaleRendering.presentFor(650);
       }); } catch (error) { settled(false); return; }
@@ -8273,6 +8275,10 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) armBubbleDeadline(); });
     function bubbleAutoClose() {
       bubbleTtlTimer = null;
+      if (bubbleScene && bubbleScene.kind === 'reaction') {
+        hideUsageAlertBubble();
+        return;
+      }
       if (bubbleScene && bubbleScene.kind === 'cost') {
         if (whaleSysSwapNext()) return;
         hideCostBubble();
@@ -8853,6 +8859,11 @@
       try {
         if (!bubbleOn) return;
         if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert' || bubbleScene.kind === 'wait')) return;
+        if (bubbleScene && bubbleScene.kind === 'reaction') {
+          if (bubbleScene.pending && bubbleScene.systemItem) bubbleScene.systemItem.onDiscard();
+          hideUsageAlertBubble();
+          if (bubbleScene) return;
+        }
         var subscription = window.WhaleAccountView?.mode === 'subscription';
         if (subscription) {
           var now = Date.now();
@@ -8877,6 +8888,11 @@
     function bubbleNext() {
       try {
         if (!bubbleShown) return;
+        if (bubbleScene && bubbleScene.kind === 'reaction') {
+          if (bubbleScene.pending && bubbleScene.systemItem) bubbleScene.systemItem.onDiscard();
+          hideUsageAlertBubble();
+          return;
+        }
         if (bubbleScene && bubbleScene.kind === 'wait') {
           interactionNoticeClient.dismiss();
           return;
@@ -9511,7 +9527,10 @@
     }).observe(menuBox);
     function toggleMenu() {
       menuOpen = !menuOpen;
-      if (menuOpen) positionMenu();
+      if (menuOpen) {
+        if (reactionNoticeClient) reactionNoticeClient.invalidate();
+        positionMenu();
+      }
       menuBox.classList.toggle('dshwv-menu-open', menuOpen);
       if (menuOpen) showMenuButton();
       if (!menuOpen) { closeUsagePanel(); closeFxInfo(); }
@@ -11674,6 +11693,39 @@
     pollInteractionNotices();
     setInterval(pollInteractionNotices, 1000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) pollInteractionNotices(); });
+    function reactionBlocked() {
+      return !bubbleOn || menuOpen || !!document.querySelector('dialog[open]') ||
+        whaleSysQueue.length > 0 || !!(bubbleScene && bubbleScene.kind !== 'random' && bubbleScene.kind !== 'reaction');
+    }
+    var reactionNoticeClient = window.WhaleReactionNotices && window.WhaleReactionNotices.create({
+      visible: function () { return !document.hidden; },
+      blocked: reactionBlocked,
+      show: function (notice, hooks) {
+        if (reactionBlocked()) return false;
+        bubbleRoundOn = false;
+        sceneOpen('reaction', function () {
+          bubbleRenderModules([{ type: 'text', text: notice.text, size: 18, bold: true, rgb: 'indigo' }]);
+        }, 2500, { kind: 'reaction', isValid: hooks.valid, onShown: hooks.shown, onDiscard: hooks.discarded });
+        return true;
+      },
+      clear: function () {
+        if (bubbleScene && bubbleScene.kind === 'reaction') {
+          if (bubbleScene.pending && bubbleScene.systemItem) bubbleScene.systemItem.onDiscard();
+          hideUsageAlertBubble();
+        }
+      }
+    });
+    if (reactionNoticeClient) {
+      reactionNoticeClient.poll();
+      setInterval(reactionNoticeClient.poll, 200);
+      window.addEventListener('whale-jev-settings-saved', function () { reactionNoticeClient.invalidate(); reactionNoticeClient.poll(); });
+      window.addEventListener('whale-reaction-invalidate', reactionNoticeClient.invalidate);
+      window.addEventListener('whale-mode-changing', reactionNoticeClient.invalidate);
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) reactionNoticeClient.invalidate();
+        reactionNoticeClient.poll();
+      });
+    }
     var LAST_TURN_URL = '/dsh-whale/last-turn.json';
     var accountNoticeClient = window.WhaleAccountNotices && window.WhaleAccountNotices.create({
       enabled: function () { return bubbleOn && turnCostOn && !document.hidden && (!window.WhaleAccountView || window.WhaleAccountView.mode !== 'subscription'); },

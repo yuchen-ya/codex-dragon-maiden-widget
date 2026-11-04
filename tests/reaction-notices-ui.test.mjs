@@ -23,6 +23,15 @@ function harness() {
 }
 const notice = id => ({ id, text: '做得好！', expiresAt: Date.now() + 2000 });
 
+test('reading time is at least 8 seconds and grows with displayed Unicode text up to 15 seconds', () => {
+  const context = vm.createContext({ window: {} }); vm.runInContext(source, context);
+  const duration = context.window.WhaleReactionNotices.duration;
+  assert.equal(duration('做得好，老大！'), 8000);
+  assert.equal(duration('😀'.repeat(30)), 8000);
+  assert.equal(duration('字'.repeat(50)), 11000);
+  assert.equal(duration('字'.repeat(80)), 15000);
+});
+
 test('reaction is acknowledged only after presentation, and repeated deliveries do not reopen it', async () => {
   const { state, client } = harness(); state.notice = notice('one');
   await client.poll(); await client.poll();

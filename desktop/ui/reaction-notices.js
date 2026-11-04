@@ -1,5 +1,8 @@
 (() => {
   'use strict';
+  function duration(text) {
+    return Math.max(8000, Math.min(15000, 2000 + Array.from(text).length * 180));
+  }
   function create({ visible, blocked, show, clear }) {
     let pending = false;
     let epoch = 0;
@@ -57,5 +60,5 @@
     }
     return { poll, invalidate };
   }
-  window.WhaleReactionNotices = Object.freeze({ create });
+  window.WhaleReactionNotices = Object.freeze({ create, duration });
 })();

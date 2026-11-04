@@ -79,6 +79,12 @@ async function main() {
   assert.match(await ev('document.querySelector(".dshwv-pop").innerText'), /还没过老大这关/);
   await delay(350);
   fs.writeFileSync(path.join(output, 'reaction.png'), (await win.webContents.capturePage()).toPNG());
+  await delay(6000);
+  assert.equal(await ev('__whaleRenderTest.status().scene'), 'reaction');
+  assert.equal(await ev('__whaleRenderTest.status().shown'), true);
+  await delay(2200);
+  assert.equal(await ev('__whaleRenderTest.status().shown'), false);
+  checks.push('Jev 短句超过 5 秒候选有效期后仍可读，8 秒阅读期结束自动收起');
   const shown = journal().find(record => record.event === 'shown');
   for (const event of ['observed', 'received', 'request-started', 'decision', 'notice-ready']) {
     assert.ok(journal().some(record => record.event === event && record.trace === shown.trace), event);

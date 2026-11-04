@@ -10912,9 +10912,10 @@
       show: function (notice, hooks) {
         if (reactionBlocked()) return false;
         bubbleRoundOn = false;
+        var text = window.DragonDialogue.format(notice.text);
         sceneOpen('reaction', function () {
-          bubbleRenderModules([{ type: 'text', text: window.DragonDialogue.format(notice.text), size: 18, bold: true, rgb: 'indigo' }]);
-        }, 2500, { kind: 'reaction', isValid: hooks.valid, onShown: hooks.shown, onDiscard: hooks.discarded });
+          bubbleRenderModules([{ type: 'text', text: text, size: 18, bold: true, rgb: 'indigo' }]);
+        }, window.WhaleReactionNotices.duration(text), { kind: 'reaction', isValid: hooks.valid, onShown: hooks.shown, onDiscard: hooks.discarded });
         return true;
       },
       clear: function () {

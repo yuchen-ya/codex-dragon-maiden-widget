@@ -7,7 +7,7 @@ const box = { module: { exports: {} } };
 vm.runInNewContext(fs.readFileSync(new URL('../desktop/ui/balance-view.js', import.meta.url), 'utf8'), box);
 const view = box.module.exports;
 const widget = fs.readFileSync(new URL('../assets/whale-widget.js', import.meta.url), 'utf8');
-const refreshSource = widget.slice(widget.indexOf('    function refresh(manual) {'), widget.indexOf('    var soundOn = true;'));
+const refreshSource = widget.slice(widget.indexOf('    function refresh(manual) {'), widget.indexOf('    var soundOn ='));
 
 test('monetary states retain their labels and never render unknown money as zero', () => {
   for (const [status, message] of [['unconfirmed', '金额口径待确认'], ['unsupported', '未提供余额接口'], ['unlimited', '密钥不限额']]) {

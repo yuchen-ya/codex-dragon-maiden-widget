@@ -600,10 +600,10 @@
     volInput.max = '1';
     volInput.step = '0.05';
     volInput.className = 'dshwv-range';
-    volInput.value = '0.9';
+    volInput.value = '0';
     var volPct = document.createElement('span');
     volPct.className = 'dshwv-volpct';
-    volPct.textContent = '90%';
+    volPct.textContent = '0%';
     volInput.addEventListener('input', function () {
       setVol(volInput.value);
     });
@@ -8450,8 +8450,8 @@
         if (timer) clearTimeout(timer);
       });
     }
-    var soundOn = true;
-    var soundVol = 0.9;
+    var soundOn = false;
+    var soundVol = 0;
     var soundSet = 'duck';
     var usageMode = 'ledger';
     var bubbleOn = true;

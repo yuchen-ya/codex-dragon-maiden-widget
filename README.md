@@ -41,7 +41,7 @@ Node.js 24+；打包另需 Python 3.10+。
 ```sh
 npm test
 node scripts/check-package.mjs
-python scripts/build-release.py --release-tag v0.1.10
+python scripts/build-release.py --release-tag v0.1.11
 ```
 
 产物位于 `dist/`，构建不会自动发布。开发约定见 [AGENTS.md](AGENTS.md)。

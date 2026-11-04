@@ -164,6 +164,14 @@ async function main() {
   assert.match(await ev('document.querySelector(".dshwv-pop").innerText'), /待回答/);
   assert.deepEqual(errors, []);
   checks.push('提问台词被删除后仍显示待回答提醒，renderer 无错误');
+  acceptInteractionHook(dataDir, { hook_event_name: 'PostToolUse', session_id: 'fixture-thread', turn_id: 'fixture-turn',
+    tool_name: 'request_user_input', tool_use_id: 'fixture-question' });
+  fs.unlinkSync(path.join(dataDir, '.dshw-size.json')); saved = {};
+  await win.reload();
+  await wait(() => ev("!!document.querySelector('.dshwv-volpct') && !!window.WhaleCollapse"), 'fresh audio controls');
+  assert.equal(await ev("document.querySelector('.dshwv-volpct').textContent"), '0%');
+  assert.equal(await ev("document.querySelector('input[type=range][max=\"1\"]').value"), '0');
+  checks.push('空配置首次启动的音量控件与运行默认值均为静音');
 }
 app.whenReady().then(main).catch(async error => {
   errors.push(error.stack || String(error)); process.exitCode = 1;

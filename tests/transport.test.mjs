@@ -130,6 +130,15 @@ test('address title defaults, partial writes and invalid values preserve unrelat
   assert.equal(reset.addressTitle, '老大');
 });
 
+test('a first address edit stays muted and later edits retain an explicitly chosen volume', async t => {
+  const { request } = await setup(t);
+  const first = await (await request('/dsh-whale/size.json', 'PUT', { addressTitle: '主人' })).json();
+  assert.equal(first.vol, 0); assert.equal(first.sound, false);
+  await request('/dsh-whale/size.json', 'PUT', { vol: 0.4, sound: true });
+  const second = await (await request('/dsh-whale/size.json', 'PUT', { addressTitle: '老大' })).json();
+  assert.equal(second.vol, 0.4); assert.equal(second.sound, true);
+});
+
 test('custom character upload, pin, image retrieval and deletion preserve the original workflow', async t => {
   const { request } = await setup(t);
   const bytes = fs.readFileSync(path.join(ROOT, 'assets', 'dragon-maiden-bust-v1.png'));

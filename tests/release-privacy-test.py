@@ -31,6 +31,9 @@ class PrivacyGates(unittest.TestCase):
     def test_nested_archive(self):
         self.reject('docs/hidden.zip', b'PK', 'Private or binary file')
 
+    def test_personal_dialogue_library_is_private(self):
+        self.reject('assets/dialogue-custom.json', b'{"private":true}', 'Private or binary file')
+
     def test_database_sidecar(self):
         self.reject('assets/cache.sqlite-wal', b'database', 'Unexpected file type')
 

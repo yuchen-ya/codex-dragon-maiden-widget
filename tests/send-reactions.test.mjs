@@ -214,3 +214,11 @@ test('numbers and secrets are filtered before payment, upload and recommendation
   assert.ok(!JSON.stringify(f.diagnostics).includes('123456789'));
   assert.ok(f.diagnostics.some(item => item.event === 'input-filtered' && item.numbers === 1 && item.secrets === 1));
 });
+
+test('removing all usable reactions avoids model fees even when proud lines remain', async t => {
+  const f = fixture(t); f.enable();
+  f.service.dialogues = { groups: { proud: [{ id: 'proud', text: '得意' }] } };
+  await f.send();
+  assert.equal(f.calls.length, 0);
+  assert.ok(f.diagnostics.some(item => item.reason === 'no-dialogue'));
+});

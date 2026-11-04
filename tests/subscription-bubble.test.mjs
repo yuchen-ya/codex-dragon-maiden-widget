@@ -2,6 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import dialogueCore from '../lib/dialogue-core.cjs';
+import { loadDialogueLibrary } from '../runtime/dialogue-library.mjs';
+
+const library = loadDialogueLibrary();
+const dialogue = { groups: library.groups, format: text => dialogueCore.render(text),
+  text: (group, index = 0, fallback = '') => dialogueCore.render(library.groups[group]?.[index]?.text || fallback) };
 
 const source = fs.readFileSync(new URL('../assets/whale-widget.js', import.meta.url), 'utf8');
 function productionFunction(name) {
@@ -14,6 +20,7 @@ test('question reminder shows character wording above a smaller session title an
   let rendered, scene;
   const box = {
     bubbleOn: true,
+    window: { DragonDialogue: dialogue },
     bubbleRenderModules: modules => { rendered = modules; },
     sceneOpen: (kind, build, ttl, item) => { scene = { kind, ttl, item }; build(); }
   };
@@ -57,7 +64,7 @@ test('subscription completion enters the character bubble queue once and respect
   box.pollLastTurn(); await new Promise(resolve => setImmediate(resolve));
   assert.equal(queued.length, 1);
 });
-const quoteModule = { module: { exports: {} } };
+const quoteModule = { module: { exports: {} }, window: { DragonDialogue: dialogue } };
 vm.runInNewContext(fs.readFileSync(new URL('../desktop/ui/dragon-maiden-quotes.js', import.meta.url), 'utf8'), quoteModule);
 const { quotes, lines } = quoteModule.module.exports;
 
@@ -94,7 +101,7 @@ function interaction() {
   const box = {
     Date: { now: () => now }, Math: { random: () => random },
     petpetClickCount: 0, petpetLastClickAt: -Infinity, petpetLastShownAt: -Infinity,
-    window: { WhaleAccountView: { mode: 'subscription' }, DragonMaidenQuotes: { lines: () => [] } },
+    window: { WhaleAccountView: { mode: 'subscription' }, DragonMaidenQuotes: { lines: () => [{ t: '普通台词' }] } },
     bubbleOn: true, bubbleShown: false, bubbleScene: null, bubbleRoundOn: false, bubbleSeqIdx: 0, BUBBLE_MS: 5000,
     bubbleRenderDefault() {}, bubbleRenderModules(modules) { rendered.push(modules); },
     sceneOpen(kind, build, ttl) { events.push(kind); box.bubbleShown = true; box.bubbleScene = { kind, ttl }; build(); },
@@ -211,4 +218,12 @@ test('dialog controls over the pet receive their pointer and click events', () =
   box.onDocPointerDown(box.event); box.onDocPointerUp(box.event);
   box.onDocClickStopper(box.event); box.onDocContextMenu(box.event);
   assert.deepEqual(blocked, []);
+});
+
+test('an empty quote group ends the click sequence without an empty speech bubble', () => {
+  const h = interaction(); h.box.window.DragonMaidenQuotes.lines = () => [];
+  h.box.bubbleSeq = h.box.bubbleDefaultQueue();
+  h.box.whaleClick(); h.box.bubbleNext();
+  assert.equal(h.box.bubbleShown, false);
+  assert.equal(h.rendered.length, 0);
 });

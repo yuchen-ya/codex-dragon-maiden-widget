@@ -22,7 +22,7 @@ test('completion bubble includes compact tokens and per-model pure speed, cache 
   assert.equal(turnBubbleModules({ completionKind: 'cancelled', tokens: 0 })[1].text, '0 tok');
   assert.match(turnBubbleModules({ tokens: 12480 })[1].text, /12.5K/);
   assert.match(turnBubbleModules({ tokens: 1000000 })[1].text, /1M/);
-  assert.equal(turnBubbleModules({ completionKind: 'failed', failureKind: 'high-demand' })[0].text, '挤不进去...');
+  assert.equal(turnBubbleModules({ completionKind: 'failed', failureKind: 'high-demand' })[0].text, '当前拥挤');
   assert.equal(turnBubbleModules({ tokens: null })[1].text, '— tok');
 });
 function runtime(fetch) {

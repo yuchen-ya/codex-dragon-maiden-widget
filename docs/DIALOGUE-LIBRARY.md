@@ -1,0 +1,56 @@
+# 对话库编辑说明
+
+默认模板集中在 [assets/dialogue-library.json](../assets/dialogue-library.json)，内容是普通 UTF-8 JSON，无需修改前端代码或调用模型生成台词。
+
+首次启动会将模板复制为桌宠数据目录的 `dialogue-custom.json`，此后实际读取个人文件。Windows 默认位置为 `%USERPROFILE%\.codex\dragon-maiden-widget\dialogue-custom.json`；自定义 WHALE_HOME 时位于相应目录。可以用文本编辑器打开，也可以交给 agent 修改。修改后重启桌宠生效。
+
+个人文件在更新时保留，不会自动用新版默认台词覆盖。需要新增默认内容时，从模板手动合入相应分组；删除整个个人文件后，下次启动重新初始化默认库。不要把个人库提交或打包，它可能包含自己的文字。
+
+## 格式与分组
+
+顶层保持 `version: 1` 与 `groups`。每个分组是数组，每句包含唯一的 `id` 和 `text`；可编辑文本、增删条目或更换 ID，不需要同步 JavaScript 中的 ID。下面只是片段，直接替换完整文件会使未列出的分组保持安静：
+
+```json
+{
+  "version": 1,
+  "groups": {
+    "tail_pull": [
+      { "id": "my-tail-line", "text": "{title}，轻点，我的尾巴可不是提手。" }
+    ],
+    "task": [
+      { "id": "my-task-line", "text": "{title}继续，我在旁边陪着。", "tone": "comment" }
+    ]
+  }
+}
+```
+
+| 分组 | 用途 |
+| --- | --- |
+| quotes | 点击额度气泡后的随机闲聊；可用 minRemainingPercent 限制额度条件 |
+| tail_pull / tail_rapid | 轻拉尾巴 / 快速连点唤醒后的短句 |
+| question / approval | 真实提问 / 授权提醒 |
+| busy | 服务拥挤时的短句 |
+| proud | 有可信推荐配对时得意；当前自动草稿来源未接通 |
+| finished / relieved_run / hard_success | 收工 / 跑通 / 难题解决 |
+| coding_rest / editing_rest / rest | 代码工作休息 / 修改工作休息 / 普通休息 |
+| revision / problem / accepted | 返工 / 问题反馈 / 认可方案 |
+| frustration / task / discussion | 工作中受挫 / 任务安排 / 讨论提问 |
+
+`id` 由 1–48 位字母、数字、下划线或短横线组成，同一分组不要重复。`tone` 可选 proud、celebrate、support、comment，缺省 comment。`minRemainingPercent` 可选 0–100 的数字，主要用于 quotes 中的满额度文案。引用文案出处保留在 [quote-sources.json](quote-sources.json)；修改默认引用时同步核对出处。
+
+## 称呼
+
+设置 → 外观与位置 → 称呼，默认“老大”，可填写“主人”等最多 12 个字的单行称呼，保存后用于新气泡。留空恢复默认。使用 `{title}` 占位符，例如 `{title}，我有个问题`；直接写死“老大”的个人文字不会自动替换。
+
+称呼只在本地展示时代入，不加入 Jev 请求、日志或长期聊天上下文。文本按普通文字显示，不能插入 HTML、脚本或执行指令。原有自定义气泡不被批量改写。
+
+## 无效内容如何处理
+
+- 删除某句后使用同组其余有效句子；同组只有一句时可在冷却后重复。
+- 分组删除或置为空数组时，对应可选反馈安静跳过，不显示空气泡。所有可用 Jev 情境都被删空时，不再为这些消息调用模型。
+- 提问、授权仍有“待回答”“待授权”等系统兜底，避免删台词后漏掉重要提醒；数据统计照常显示。
+- 展示文字连同称呼最多 80 个 Unicode 码点，过长时省略号截短；原文件保留。单句超过 1000 个码点则忽略，每组最多读取 200 句。
+- 空文本、类型错误、重复 ID、控制字符、未知或破损占位符等只影响对应条目；未知分组不执行。
+- 整份 JSON 损坏、无法读取或超过 1 MiB 时，可选对话停用，基本桌宠与系统提醒继续运行；只在内部控制台记录固定错误类别，不覆盖个人文件、不弹错误气泡。修复后重启即可。
+
+台词不改变语义分类规则：例如不要把仍在赶工的 frustration 写成“收工”，不要在 accepted 中声称识别了不可读取的草稿。修改台词本身不需要再次发送用户消息给云端模型。

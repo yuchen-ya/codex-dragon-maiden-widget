@@ -5,7 +5,10 @@
   function quotaLabel(item) { return item.windowDurationMins === 300 ? '5 小时额度' : item.windowDurationMins === 10080 ? '每周额度' : item.label || '额度窗口'; }
   function speedText(value) { return number(value) === null ? '— tok/s' : `${Number(value.toFixed(1))} tok/s`; }
   function turnBubbleModules(notice) {
-    if (notice.failureKind === 'high-demand') return [{ type: 'text', text: '挤不进去...', size: 18, bold: true, rgb: 'indigo' }];
+    if (notice.failureKind === 'high-demand') {
+      const text = typeof window !== 'undefined' && window.DragonDialogue ? window.DragonDialogue.text('busy', 0, '当前拥挤') : '当前拥挤';
+      return [{ type: 'text', text, size: 18, bold: true, rgb: 'indigo' }];
+    }
     const tokens = number(notice.tokens);
     const usage = tokens === null ? '—' : tokens >= 1000000 ? Number((tokens / 1000000).toFixed(2)) + 'M' : tokens >= 1000 ? Number((tokens / 1000).toFixed(1)) + 'K' : String(tokens);
     const label = notice.completionKind === 'cancelled' ? '本轮用量 · 取消' : notice.completionKind === 'failed' ? '本轮用量 · 未完成' : '本轮用量';
@@ -86,6 +89,38 @@
     return pending;
   }
   function text(parent, tag, value) { const el = document.createElement(tag); el.textContent = value; parent.append(el); return el; }
+  function addressSetting(parent) {
+    const row = document.createElement('div'); row.className = 'whale-address-setting';
+    const label = text(row, 'label', '称呼'); label.htmlFor = 'dshw-address-title';
+    const input = document.createElement('input'); input.id = label.htmlFor;
+    input.type = 'text'; input.placeholder = '老大'; input.maxLength = 24; input.autocomplete = 'off';
+    input.setAttribute('aria-label', '桌宠对你的称呼'); input.title = '最多 12 个字，留空恢复老大；保存后用于新气泡。';
+    const save = text(row, 'button', '保存'); save.type = 'button';
+    save.disabled = true; input.disabled = true; row.insertBefore(input, save); parent.prepend(row);
+    fetch('/dsh-whale/size.json', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error('称呼设置读取失败');
+      const settings = await response.json();
+      window.DragonDialogue.setTitle(settings.addressTitle);
+      input.value = window.DragonDialogue.title;
+      input.disabled = false; save.disabled = false;
+    }).catch(() => window.whaleToast?.('称呼设置暂不可用，请稍后重新打开桌宠。'));
+    save.onclick = async () => {
+      let title;
+      try { title = window.DragonDialogueCore.addressTitle(input.value, true); }
+      catch (error) { window.whaleToast?.(error.message); return; }
+      save.disabled = true;
+      try {
+        const response = await fetch('/dsh-whale/size.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addressTitle: title }) });
+        const result = await response.json();
+        if (!response.ok || result.ok === false) throw new Error('称呼未能保存，请稍后重试。');
+        window.DragonDialogue.setTitle(result.addressTitle); input.value = window.DragonDialogue.title;
+        window.whaleToast?.('称呼已保存，下次气泡生效。');
+      } catch (error) { window.whaleToast?.(error.message); }
+      finally { save.disabled = false; }
+    };
+    input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); save.click(); } });
+  }
   function init() {
     const menu = document.querySelector('.dshwv-menu');
     if (menu) {
@@ -105,6 +140,7 @@
           const index = /音效|音量|气泡|消耗提示|声音/.test(label) ? 1 : /币种|汇率|资源|工坊|API|额度|峰谷|用量/.test(label) ? 2 : 0;
           groups[index].append(child);
         }
+        addressSetting(groups[0]);
       }
     }
     updateVisibility();

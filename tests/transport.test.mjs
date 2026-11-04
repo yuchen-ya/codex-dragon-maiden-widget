@@ -112,6 +112,24 @@ test('original widget settings and bubble sequences survive save and reload', as
   assert.equal(usage.settings.alert.below, 2); assert.equal(usage.settings.budget.amount, 3);
 });
 
+test('address title defaults, partial writes and invalid values preserve unrelated preferences', async t => {
+  const { request } = await setup(t);
+  await request('/dsh-whale/size.json', 'PUT', { scale: 1.2, vol: 0.3 });
+  assert.equal((await (await request('/dsh-whale/size.json')).json()).addressTitle, '老大');
+  const changed = await (await request('/dsh-whale/size.json', 'PUT', { addressTitle: ' 主人 ' })).json();
+  assert.equal(changed.addressTitle, '主人'); assert.equal(changed.vol, 0.3); assert.equal(changed.scale, 1.2);
+  await request('/dsh-whale/size.json', 'PUT', { vol: 0.6 });
+  let loaded = await (await request('/dsh-whale/size.json')).json();
+  assert.equal(loaded.addressTitle, '主人');
+  for (const addressTitle of ['字'.repeat(13), '两\n行', '{title}', 123]) {
+    assert.equal((await request('/dsh-whale/size.json', 'PUT', { addressTitle })).status, 400);
+  }
+  loaded = await (await request('/dsh-whale/size.json')).json();
+  assert.equal(loaded.addressTitle, '主人'); assert.equal(loaded.vol, 0.6);
+  const reset = await (await request('/dsh-whale/size.json', 'PUT', { addressTitle: '' })).json();
+  assert.equal(reset.addressTitle, '老大');
+});
+
 test('custom character upload, pin, image retrieval and deletion preserve the original workflow', async t => {
   const { request } = await setup(t);
   const bytes = fs.readFileSync(path.join(ROOT, 'assets', 'dragon-maiden-bust-v1.png'));

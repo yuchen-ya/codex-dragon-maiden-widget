@@ -17,6 +17,7 @@ desktop-profile/
 .env.*
 api-settings.json
 jev-settings.json
+dialogue-custom.json
 usage-settings.json
 runtime.json
 service.lock

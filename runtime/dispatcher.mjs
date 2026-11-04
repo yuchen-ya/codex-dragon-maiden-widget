@@ -18,6 +18,7 @@ import { JevConnection, JevConnectionError } from './jev-connection.mjs';
 import { SendingSource } from './send-events.mjs';
 import { SendReactions } from './send-reactions.mjs';
 import { ReactionLog } from './reaction-log.mjs';
+import { loadDialogueLibrary } from './dialogue-library.mjs';
 
 export const UI_ORIGIN = 'whale://widget';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
@@ -40,8 +41,10 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
   const modelUsage = modelUsageService || createModelUsageService(whale.config, { dataDir });
   const quota = createCodexQuotaService({ codexHome: whale.config.codexHome });
   const jev = jevConnection || new JevConnection({ dataDir, env: whale.config.env });
+  const dialogues = loadDialogueLibrary({ dataDir });
   const reactionLog = new ReactionLog({ dataDir });
   const reactions = new SendReactions({ connection: jev,
+    dialogues,
     diagnostics: record => reactionLog.write(record),
     sourceFactory: sendSourceFactory || (callbacks => new SendingSource({ codexHome: whale.config.codexHome || CODEX_HOME, ...callbacks })),
     isBlocked: () => statusInfo().visible === false || readInteractionNotices(interactionDataDir).length > 0 });
@@ -194,6 +197,15 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
         return jsonResult(405, { ok: false });
       }
       if (url.pathname === '/api/show' && method === 'POST') { onShow(); return jsonResult(200, { ok: true, desktop: 'shown' }); }
+      if (url.pathname === '/dialogue-library.js') {
+        if (method !== 'GET') return jsonResult(405, { ok: false });
+        return { status: 200, headers: { 'content-type': MIME['.js'] },
+          body: Buffer.from('window.DragonDialogueData=' + JSON.stringify({ groups: dialogues.groups }) + ';') };
+      }
+      if (url.pathname === '/dialogue-core.js') {
+        return method === 'GET' ? { status: 200, headers: { 'content-type': MIME['.js'] },
+          body: fs.readFileSync(path.join(ROOT, 'lib/dialogue-core.cjs')) } : jsonResult(405, { ok: false });
+      }
       if (url.pathname === '/api/stop' && method === 'POST') { setTimeout(onStop, 100); return jsonResult(200, { ok: true }); }
       const uiFiles = { '/': 'widget.html', '/widget.html': 'widget.html', '/client.js': 'client.js', '/ui.css': 'ui.css', '/render.js': 'render.js', '/input.js': 'input.js', '/alpha-worker.js': 'alpha-worker.js', '/money.js': 'money.js', '/media-guard.js': 'media-guard.js', '/turn-notice.js': 'turn-notice.js', '/gesture.js':'gesture.js', '/audio-engine.js':'audio-engine.js', '/preferences-v3.js':'preferences-v3.js', '/insights.js':'insights.js', '/workshop.js':'workshop.js', '/usage-history.js':'usage-history.js', '/account-notices.js':'account-notices.js' };
       uiFiles['/account-view.js']='account-view.js';
@@ -204,6 +216,7 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
       uiFiles['/jev-settings.js']='jev-settings.js';
       uiFiles['/reaction-notices.js']='reaction-notices.js';
       uiFiles['/collapse.js']='collapse.js';
+      uiFiles['/dialogue.js']='dialogue.js';
       let file;
       if (Object.hasOwn(uiFiles, url.pathname)) file = path.join(ROOT, 'desktop', 'ui', uiFiles[url.pathname]);
       else if (url.pathname.startsWith('/assets/')) {

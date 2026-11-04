@@ -19,7 +19,7 @@ for (const name of ['../runtime/interaction-notices.mjs', '../runtime/approval-c
 await import('../runtime/approval-context.mjs');
 await import('../runtime/dispatcher.mjs');
 if (!fs.existsSync(fileURLToPath(new URL('../desktop/ui/jev-settings.js', import.meta.url)))) throw new Error('Jev settings UI is missing');
-for (const file of ['../desktop/ui/reaction-notices.js', '../assets/dragon-maiden-reactions.json', '../desktop/ui/collapse.js']) {
+for (const file of ['../desktop/ui/reaction-notices.js', '../assets/dialogue-library.json', '../lib/dialogue-core.cjs', '../desktop/ui/dialogue.js', '../desktop/ui/collapse.js']) {
   if (!fs.existsSync(fileURLToPath(new URL(file, import.meta.url)))) throw new Error('Reaction dependency is missing: ' + file);
 }
 for (const file of ['dragon-maiden-hide-v7.webp', 'dragon-maiden-appear-v7.webp', 'dragon-maiden-tail-hide-v8.webp', 'dragon-maiden-tail-appear-v8.webp', 'dragon-maiden-tail-v1.png']) {

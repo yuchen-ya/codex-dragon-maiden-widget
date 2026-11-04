@@ -1,14 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { JevConnectionError } from './jev-connection.mjs';
-import { chooseReaction, REACTION_QUESTIONS } from './reaction-policy.mjs';
+import { chooseReaction, hasReactionLines, REACTION_QUESTIONS } from './reaction-policy.mjs';
+import { loadDialogueLibrary } from './dialogue-library.mjs';
 import { filterReactionText } from './reaction-input.mjs';
 
 const REACTION_WINDOW_MS = 5000;
 const COOLDOWN_MS = 10000;
 
 export class SendReactions {
-  constructor({ connection, sourceFactory, isBlocked = () => false, now = Date.now, diagnostics = () => {} }) {
-    Object.assign(this, { connection, isBlocked, now, diagnostics });
+  constructor({ connection, sourceFactory, isBlocked = () => false, now = Date.now, diagnostics = () => {}, dialogues = loadDialogueLibrary() }) {
+    Object.assign(this, { connection, isBlocked, now, diagnostics, dialogues });
     this.source = sourceFactory({ onSend: event => this.receive(event), onContext: event => this.contextEvent(event),
       onDiagnostic: record => this.diagnostics(record),
       onError: () => { this.error = '发送监听暂不可用'; this.diagnostics({ event: 'source-error' }); } });
@@ -87,6 +88,7 @@ export class SendReactions {
         Object.assign(state, { route: 'paired', recommendations, local_comparison: recommendations.includes(text) ? 'exact' : 'different' });
       }
     }
+    if (!hasReactionLines(this.dialogues, state.route)) return skip('no-dialogue');
     this.requests = this.requests.filter(time => at - time < 60000);
     if (this.requests.length >= 30) return skip('rate-limited');
     this.requests.push(at);
@@ -102,7 +104,7 @@ export class SendReactions {
       const blockedAfterRequest = this.unavailableReason();
       if (blockedAfterRequest) return skip(blockedAfterRequest);
       if (this.now() - event.at >= REACTION_WINDOW_MS) return skip('result-expired');
-      const line = chooseReaction(result, state, this.lastLineId);
+      const line = chooseReaction(result, state, this.lastLineId, this.dialogues);
       this.error = ''; this.lastDecision = line ? 'eligible' : 'silent';
       const decisions = Object.fromEntries(Object.entries(REACTION_QUESTIONS).map(([name, question]) => {
         const answer = result.answers[name];

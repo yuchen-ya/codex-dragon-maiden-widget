@@ -3,13 +3,15 @@ name: codex-dragon-maiden-widget
 description: 显示 Codex 小龙娘，读取订阅额度、检查提问和授权提醒及自动跟随状态。仅在用户需要操作小龙娘时使用。
 ---
 
-# Codex 小龙娘 v0.1.4
+# Codex 小龙娘 v0.1.8
 
 优先使用本插件的 `dragon_quota`、`dragon_usage`、`dragon_status`、`dragon_open` 工具。未连接时，从插件根目录运行 `node scripts/control.mjs status`；查询额度使用 `node scripts/control.mjs quota`。报告实际结果，不把未运行的检查称为通过。
 
 订阅额度来自官方 `account/rateLimits/read`；本机 token 统计不代表官方剩余 token。读取失败时说明原因，不展示缓存为实时结果，不修改 Codex 的模型、登录或 API 配置。
 
 默认随 Codex 显示、隐藏。尊重用户主动隐藏或退出的选择。第一版与 A 版形象在菜单中切换；音效默认静音，可在“声音与气泡”开启。
+
+点击露出的尾尖收起身体；侧边中央位置会向最近的窗口边缘收起，展开回到原位置。尾巴使用完整素材绕固定根部轻拉，避免切口悬空。收起后完全免打扰，所有气泡、提醒点、错误提示与音效均停用；单击轻摆，拖拽或在 1.2 秒内连续点击 4 次恢复，展开动画结束后才接一句专属短句。收起状态会保存，恢复位置命令同时展开角色。
 
 提问、授权提醒沿用等待气泡，同一请求只提示一次。Hook 只记录本机请求标识、类型与时间，不自动授权，不记录问题、答案或工具参数。首次安装或命令改变后，由用户在 Codex Hooks 界面审核并信任 `interaction-hook.mjs`；不得代替用户设置信任。
 

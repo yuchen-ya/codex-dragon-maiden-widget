@@ -1,3 +1,4 @@
+# Dependencies and local verification/build output.
 node_modules/
 qa-output/
 *.log
@@ -8,17 +9,37 @@ qa-*/
 docs/images/
 private-backup*/
 backups/
+# Installed runtimes, profiles and private configuration.
 desktop-runtime/
 desktop-profile/
 .codex/
 .env
 .env.*
 api-settings.json
+jev-settings.json
 usage-settings.json
 runtime.json
 service.lock
 *-installation.json
 *rollback-target.json
+
+# Runtime state if the data home is pointed at this checkout.
+/.dshw-*.json
+/ui-state.json
+/follow-config.json
+/follow-state.json
+/supervisor-state.json
+/launcher-state.json
+/pause-until-host-exit.json
+/legacy-storage-imported.json
+/render-status.json
+/startup-timings.json
+/desktop-error.json
+/desktop-shutdown.json
+/visibility-*.json
+/interaction-notices/
+
+# Temporary exports, local databases and credentials.
 *.bak
 *.jsonl
 *.sqlite*

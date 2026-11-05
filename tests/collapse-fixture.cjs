@@ -35,9 +35,13 @@ function click(point, clickCount = 1) {
 const collapsed = () => ev('WhaleCollapse.collapsed');
 async function tailPoint() {
   const point = await ev(`(() => {
+    for(const source of [{x:1200,y:180},{x:1190,y:190},{x:1110,y:220},{x:1080,y:300},{x:1060,y:410},{x:1000,y:530}]){
+      const p=__whaleTailTest.screenAt(source);
+      if([[0,0],[2,0],[-2,0],[0,2],[0,-2]].every(([dx,dy])=>WhaleCollapse.hit(p.x+dx,p.y+dy)))return p;
+    }
     const r=document.querySelector('.dshwv-tail img').getBoundingClientRect();
     for(let y=Math.ceil(r.top);y<r.bottom;y+=2)for(let x=Math.ceil(r.left);x<r.right;x+=2)
-      if(WhaleCollapse.hit(x,y))return {x,y};
+      if([[0,0],[2,0],[-2,0],[0,2],[0,-2]].every(([dx,dy])=>WhaleCollapse.hit(x+dx,y+dy)))return {x,y};
     const img=document.querySelector('.dshwv-tail img'),s=getComputedStyle(img);
     return {error:'No exposed clickable tail pixel',complete:img.complete,natural:[img.naturalWidth,img.naturalHeight],viewport:[innerWidth,innerHeight],bounds:r.toJSON(),button:img.parentElement.getBoundingClientRect().toJSON(),
       style:{left:s.left,top:s.top,width:s.width,height:s.height,transform:s.transform,origin:s.transformOrigin},src:img.currentSrc};
@@ -56,12 +60,36 @@ async function dragTail() {
   win.webContents.sendInputEvent({ type: 'mouseMove', x, y });
   win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
   await delay(300);
-  win.webContents.sendInputEvent({ type: 'mouseMove', x: x + 60, y: y - 30 });
+  assert.equal(await ev("!!document.querySelector('.dshwv-tail-held')"), true, 'tail pointer capture survives the hold');
+  await startPullProbe({ x, y });
+  for (const [dx, dy] of [[60, 0], [-60, 0], [0, 60], [0, -60]]) {
+    win.webContents.sendInputEvent({ type: 'mouseMove', x: x + dx, y: y + dy, modifiers: ['leftbuttondown'] });
+    await delay(50);
+    await checkPullDirection(dx, dy);
+  }
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: x + 60, y: y - 30, modifiers: ['leftbuttondown'] });
   await delay(60);
   const pull = await ev("(() => {const m=new DOMMatrix(getComputedStyle(document.querySelector('.dshwv-tail img')).transform);return {x:m.m41,y:m.m42,full:document.querySelector('.dshwv-tail img').naturalWidth};})()");
   assert.equal(pull.x, 0); assert.equal(pull.y, 0);
   assert.equal(pull.full, 1536, 'complete tail, not a cropped tip, is deformed around a fixed hinge');
   win.webContents.sendInputEvent({ type: 'mouseUp', x: x + 60, y: y - 30, button: 'left', clickCount: 1 });
+}
+async function startPullProbe(point) {
+  await ev(`(() => {
+    const img=document.querySelector('.dshwv-tail img'), r=img.parentElement.getBoundingClientRect(), s=getComputedStyle(img);
+    const mirror=!WhaleCollapse.collapsed && WhaleRendering.mirrorScale(document.querySelector('.dshwv-root'))<0?-1:1;
+    const [ox,oy]=s.transformOrigin.split(' ').map(parseFloat);
+    const origin={x:parseFloat(s.left)+ox,y:parseFloat(s.top)+oy};
+    window.__tailPullProbe={source:__whaleTailTest.sourceAt(${point.x},${point.y}),start:${JSON.stringify(point)}};
+  })()`);
+}
+async function checkPullDirection(dx, dy) {
+  const displacement = await ev(`(() => {
+    const probe=__tailPullProbe,p=__whaleTailTest.screenAt(probe.source);
+    return {x:p.x-probe.start.x,y:p.y-probe.start.y};
+  })()`);
+  assert.ok(displacement.x * dx + displacement.y * dy > .1,
+    `grabbed tail pixel must follow force (${dx},${dy}), got ${JSON.stringify(displacement)}`);
 }
 async function capture(name) {
   const r = await ev(`(() => { const r=document.querySelector('.dshwv-root').getBoundingClientRect();return {x:Math.floor(r.x),y:Math.floor(r.y),width:Math.ceil(r.width),height:Math.ceil(r.height)}; })()`);
@@ -95,13 +123,99 @@ async function checkTailConnection(name) {
 async function checkHiddenPull(name) {
   const p = await tailPoint(), x = Math.round(p.x), y = Math.round(p.y);
   win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+  await delay(30); await startPullProbe({ x, y });
   for (const [dx, dy] of [[60, -60], [-60, -60], [60, 60], [-60, 60]]) {
-    win.webContents.sendInputEvent({ type: 'mouseMove', x: x + dx, y: y + dy });
+    win.webContents.sendInputEvent({ type: 'mouseMove', x: x + dx, y: y + dy, modifiers: ['leftbuttondown'] });
     await delay(70);
+    await checkPullDirection(dx, dy);
     await checkTailConnection(name + '-' + dx + '-' + dy);
   }
   await ev("window.dispatchEvent(new Event('blur'))");
   win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+}
+async function auditDeformation() {
+  win.webContents.debugger.attach('1.3');
+  await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  const folder = path.join(root, 'qa-output', 'tail-deformation');
+  fs.mkdirSync(folder, { recursive: true });
+  const poses = [];
+  for (const mirror of [false, true]) {
+    await ev(`localStorage.setItem('dshw-collapsed','false');localStorage.setItem('dshw-pos',JSON.stringify({v:2,hAnchor:'${mirror ? 'left' : 'right'}',hDist:120,vAnchor:'bottom',vDist:0}));`);
+    await win.reload();
+    await wait(`window.__whaleTailTest && WhaleRendering.hitCache.stats.decodes>=2 && __whaleRenderTest.status().flip===${mirror}`, 'audit layout');
+    await ev(`window.__tailDrawTimes=[];(()=>{const prototype=WhaleTailMesh.TailMesh.prototype,draw=prototype.draw;prototype.draw=function(){const at=performance.now();draw.call(this);__tailDrawTimes.push(performance.now()-at);};})()`);
+    await delay(400);
+    const point = await tailPoint(), x = Math.round(point.x), y = Math.round(point.y);
+    const hinge = await ev('__whaleTailTest.screenAt({x:470,y:800})');
+    const length = Math.hypot(x - hinge.x, y - hinge.y);
+    const dx = (x - hinge.x) / length * 110, dy = (y - hinge.y) / length * 110;
+    async function sample(label) {
+      const state = await ev(`({...__whaleTailTest.state(),label:'${label}',mirror:${mirror},material:__whaleTailTest.screenAt({x:1240,y:200})})`);
+      state.file = (mirror ? 'mirror-' : 'normal-') + label + '.png';
+      const screenshot = await win.webContents.capturePage();
+      fs.writeFileSync(path.join(folder, state.file), screenshot.toPNG());
+      if (label === 'held') {
+        const samples = await ev(`(() => {
+          const img=document.querySelector('.dshwv-tail img'), c=document.createElement('canvas');c.width=1536;c.height=1024;
+          const context=c.getContext('2d',{willReadFrequently:true});context.drawImage(img,0,0);const pixels=context.getImageData(0,0,1536,1024).data,result=[];
+          for(let y=120;y<930;y+=31)for(let x=320;x<1240;x+=29){
+            if(![[0,0],[10,0],[-10,0],[0,10],[0,-10]].every(([dx,dy])=>pixels[((y+dy)*1536+x+dx)*4+3]>=250))continue;
+            const p=__whaleTailTest.screenAt({x,y});
+            if(p.x>3&&p.y>3&&p.x<innerWidth-3&&p.y<innerHeight-3&&WhaleCollapse.hit(p.x,p.y))result.push(p);
+          }
+          return {points:result,width:innerWidth,height:innerHeight};
+        })()`);
+        const bitmap = screenshot.toBitmap(), size = screenshot.getSize();
+        const transparent = samples.points.filter(p => bitmap[(Math.floor(p.y * size.height / samples.height) * size.width + Math.floor(p.x * size.width / samples.width)) * 4 + 3] < 230).length;
+        assert.ok(samples.points.length > 20, 'enough visible opaque tail samples');
+        assert.ok(transparent / samples.points.length < .02, 'opaque tail has no transparent triangle seams');
+        state.alphaAudit = { samples: samples.points.length, transparent };
+        assert.equal(await ev(`(() => {const r=document.querySelector('.dshwv-tail-mesh').getBoundingClientRect();
+          for(let y=Math.max(0,r.top);y<Math.min(innerHeight,r.bottom);y+=20)for(let x=Math.max(0,r.left);x<Math.min(innerWidth,r.right);x+=20)
+            if(!WhaleCollapse.hit(x,y)&&!WhaleRendering.hitCache.hit(document.querySelector('.dshwv-img'),x,y,WhaleRendering.mirrorScale(document.querySelector('.dshwv-root'))<0))
+              return __whaleInputTest.hit({x,y});return true;})()`), false, 'transparent mesh area remains click-through');
+      }
+      poses.push(state);
+    }
+    await sample('rest');
+    win.webContents.sendInputEvent({ type: 'mouseMove', x, y });
+    win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+    const distances = [2, 5, 12, 30, 70, 110];
+    for (let i = 1; i <= distances.length; i++) {
+      win.webContents.sendInputEvent({ type: 'mouseMove', x: Math.round(x + dx * distances[i - 1] / 110), y: Math.round(y + dy * distances[i - 1] / 110), modifiers: ['leftbuttondown'] });
+      await delay(35); await sample('pull-' + i);
+    }
+    await sample('held');
+    win.webContents.sendInputEvent({ type: 'mouseUp', x: Math.round(x + dx), y: Math.round(y + dy), button: 'left', clickCount: 1 });
+    const start = Date.now();
+    for (const ms of [0, 50, 100, 180, 280, 420, 560, 760]) {
+      await delay(Math.max(0, start + ms - Date.now())); await sample('release-' + ms);
+    }
+    const lastFrames = await ev('__whaleTailTest.state().frames');
+    await delay(250);
+    assert.equal(await ev('__whaleTailTest.state().active'), false);
+    assert.equal(await ev('__whaleTailTest.state().frames'), lastFrames, 'no mesh frames while idle');
+    const timings = await ev('__tailDrawTimes');
+    fs.writeFileSync(path.join(folder, (mirror ? 'mirror' : 'normal') + '-draw-times.json'), JSON.stringify(timings));
+    for (const [label, fx, fy] of [['left', -75, 0], ['right', 75, 0], ['up', 0, -75], ['down', 0, 75]]) {
+      const p = await tailPoint(), px = Math.round(p.x), py = Math.round(p.y);
+      win.webContents.sendInputEvent({ type: 'mouseDown', x: px, y: py, button: 'left', clickCount: 1 });
+      await delay(30); await startPullProbe({ x: px, y: py });
+      win.webContents.sendInputEvent({ type: 'mouseMove', x: px + fx, y: py + fy, modifiers: ['leftbuttondown'] });
+      await delay(50); await checkPullDirection(fx, fy); await sample('direction-' + label);
+      await ev("window.dispatchEvent(new Event('blur'))");
+      win.webContents.sendInputEvent({ type: 'mouseUp', x: px + fx, y: py + fy, button: 'left', clickCount: 1 });
+    }
+  }
+  fs.writeFileSync(path.join(folder, 'poses.json'), JSON.stringify(poses, null, 2));
+  for (const side of ['left', 'right']) {
+    await ev(`localStorage.setItem('dshw-pos',JSON.stringify({v:2,hAnchor:'${side}',hDist:0,vAnchor:'top',vDist:90}));`);
+    await win.reload();
+    await wait('window.__whaleTailTest && WhaleRendering.hitCache.stats.decodes>=2', 'audit side'); await delay(350);
+    click(await tailPoint()); await wait('WhaleCollapse.collapsed && !WhaleCollapse.busy', 'audit side hide');
+    await checkHiddenPull(side + '-mesh-audit');
+  }
+  checks.push('普通与镜像的拉直回弹、四向受力截图和关节数据已采集；透明网格接缝检查通过，静止后停止绘制，侧边拖尾仍连接边缘');
 }
 async function sourceAttachment() {
   return ev(`(() => {
@@ -167,18 +281,29 @@ async function main() {
   await win.loadURL('whale://widget/widget.html'); win.show(); win.focus();
   await wait('window.WhaleCollapse && WhaleRendering.hitCache.stats.decodes >= 2 && window.__whaleRenderTest.status().scale === 1.5', 'character and tail masks');
   await delay(350);
+  if (process.argv.includes('--tail-audit')) { await auditDeformation(); return; }
   assert.equal(await collapsed(), false);
   const position = await ev("localStorage.getItem('dshw-pos')");
   await ev(`window.__tailTrace=[];for(const name of ['pointerdown','pointerup','pointercancel','lostpointercapture','whale-tail-tug'])
     document.addEventListener(name,e=>__tailTrace.push({name,target:e.target.className,held:!!document.querySelector('.dshwv-tail-held'),status:__whaleRenderTest.status()}),true);
     window.addEventListener('whale-tail-tug',()=>__tailTrace.push({name:'tug',status:__whaleRenderTest.status()}));`);
+  await ev("for(const name of ['blur','resize'])window.addEventListener(name,()=>__tailTrace.push({name,at:performance.now()}));");
+  await ev("for(const name of ['pointermove','gotpointercapture','dragstart'])document.addEventListener(name,e=>__tailTrace.push({name,buttons:e.buttons,id:e.pointerId,target:e.target.className,held:!!document.querySelector('.dshwv-tail-held'),captured:document.querySelector('.dshwv-tail').hasPointerCapture(e.pointerId||1)}),true);");
   await dragTail();
+  assert.equal(await ev('__whaleRenderTest.status().shown'), false, 'first pull is silent');
+  await delay(450); await dragTail();
   await wait("__whaleRenderTest.status().scene === 'tail' && __whaleRenderTest.status().shown", 'exclusive tail dialogue');
   assert.equal(await collapsed(), false);
   assert.equal(await ev("localStorage.getItem('dshw-pos')"), position);
   await capture('tail-tug-dialogue');
+  checks.push('展开时四向轻拉顺着受力方向、尾根固定，第一次安静、第二次显示专属台词，不改变角色位置');
+  await dragTail();
+  await wait("document.querySelector('.dshwv-pop').innerText.includes('还拽')", 'third pull objects while previous tail bubble is open');
   await ev('__whaleRenderTest.close()'); await delay(450);
-  checks.push('展开时尾巴可按住轻拉，位移受限、松手回弹并显示专属台词，不改变角色位置');
+  await dragTail(); await delay(100);
+  assert.equal(await ev('__whaleRenderTest.status().shown'), false, 'further pulls during ignore period are silent');
+  checks.push('第三次拉扯替换成更不满的台词，随后继续拉扯不回应');
+  await wait('!__whaleTailTest.state().active', 'tail rebound settled');
   const portraitSource = await ev("document.querySelector('.dshwv-img').src");
   const portraitRect = await ev("document.querySelector('.dshwv-img').getBoundingClientRect().toJSON()");
   function sameRect(actual, expected, label) {
@@ -260,10 +385,12 @@ async function main() {
   await delay(1300);
   checks.push('收起点击不计入恢复次数，超出时间窗的旧点击不会累积');
   await dragTail(); await wait('!WhaleCollapse.collapsed && !WhaleCollapse.busy', 'drag restore');
-  await wait("__whaleRenderTest.status().scene === 'tail'", 'pull wake dialogue');
+  assert.equal(await ev('__whaleRenderTest.status().shown'), false, 'first pull wake is silent');
+  await delay(450); await dragTail();
+  await wait("__whaleRenderTest.status().scene === 'tail'", 'second pull after wake');
   await ev('__whaleRenderTest.close()'); await delay(350);
   assert.equal(await ev("localStorage.getItem('dshw-pos')"), position);
-  checks.push('拖尾巴恢复后才接专属短句，隐藏期间安静且保留原位置');
+  checks.push('第一次拖尾巴唤醒保持安静，再拉才接专属短句，隐藏期间安静且保留原位置');
   click(await tailPoint()); await wait('WhaleCollapse.collapsed && !WhaleCollapse.busy', 'hide before cancellation');
   const cancelPoint = await tailPoint();
   win.webContents.sendInputEvent({ type: 'mouseDown', x: Math.round(cancelPoint.x), y: Math.round(cancelPoint.y), button: 'left', clickCount: 1 });
@@ -309,6 +436,7 @@ async function main() {
   assert.equal(await collapsed(), false);
   await capture('expanded-left');
   await dragTail();
+  await delay(450); await dragTail();
   await wait("__whaleRenderTest.status().scene === 'tail'", 'mirrored tail tug');
   await ev('__whaleRenderTest.close()'); await delay(450);
   checks.push('左侧镜像布局可收起、摇晃和连续四击恢复');

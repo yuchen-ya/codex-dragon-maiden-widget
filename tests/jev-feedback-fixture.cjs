@@ -135,7 +135,7 @@ async function main() {
   assert.ok(!JSON.stringify(uploaded).includes('主人'), 'the custom address stays local');
   checks.push('设置页保存称呼为主人，Jev 气泡使用新称呼，称呼不上传模型');
   await ev('__whaleRenderTest.close()'); await delay(400);
-  await ev("window.dispatchEvent(new Event('whale-tail-tug'))");
+  await ev("window.dispatchEvent(new Event('whale-tail-tug'));window.dispatchEvent(new Event('whale-tail-tug'))");
   await wait(() => ev("__whaleRenderTest.status().scene === 'tail'"), 'addressed tail line');
   assert.match(await ev('document.querySelector(".dshwv-pop").innerText'), /干嘛，主人/);
   checks.push('尾巴互动共用称呼占位符');
@@ -159,7 +159,7 @@ async function main() {
   send('no-dialogue', '继续修改。');
   await wait(() => journal().some(record => record.reason === 'no-dialogue'), 'deleted reactions skip payment');
   assert.equal(calls, 2);
-  await ev("window.dispatchEvent(new Event('whale-tail-tug'))");
+  await ev("window.dispatchEvent(new Event('whale-tail-tug'));window.dispatchEvent(new Event('whale-tail-tug'))");
   await wait(() => ev("__whaleRenderTest.status().scene === 'tail'"), 'custom long tail line');
   const displayed = await ev('document.querySelector(".dshwv-pop").innerText');
   assert.ok(displayed.includes('主人')); assert.ok(displayed.endsWith('…'));

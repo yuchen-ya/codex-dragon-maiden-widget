@@ -10625,11 +10625,22 @@
       window.dispatchEvent(new Event('whale-reaction-invalidate'));
       if (!event.detail.collapsed) { pollInteractionNotices(); whaleSysTick(); }
     });
-    var tailTugIndex = 0, lastTailTug = -Infinity;
+    var tailTugIndex = 0, tailPullCount = 0, lastTailPull = -Infinity, tailIgnoreUntil = 0;
     function showTailResponse(kind) {
-      if (reactionBlocked() || Date.now() - lastTailTug < 800) return;
-      lastTailTug = Date.now();
-      var line = window.DragonDialogue.text(kind === 'rapid' ? 'tail_rapid' : 'tail_pull', tailTugIndex++);
+      if (reactionBlocked(true)) return;
+      var now = performance.now();
+      if (now < tailIgnoreUntil) return;
+      var index;
+      if (kind === 'pull') {
+        if (tailIgnoreUntil || now - lastTailPull >= 10000) tailPullCount = 0;
+        tailIgnoreUntil = 0;
+        lastTailPull = now;
+        tailPullCount++;
+        if (tailPullCount === 1) return;
+        index = tailPullCount - 2;
+        if (tailPullCount === 3) tailIgnoreUntil = now + 20000;
+      } else index = tailTugIndex++;
+      var line = window.DragonDialogue.text(kind === 'rapid' ? 'tail_rapid' : 'tail_pull', index);
       if (!line) return;
       sceneOpen('tail', function () {
         bubbleRenderModules([{ type: 'text', text: line, size: 18, bold: true, rgb: 'indigo' }]);
@@ -10902,9 +10913,9 @@
     pollInteractionNotices();
     setInterval(pollInteractionNotices, 1000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) pollInteractionNotices(); });
-    function reactionBlocked() {
+    function reactionBlocked(allowTail) {
       return !!(window.WhaleCollapse && (window.WhaleCollapse.collapsed || window.WhaleCollapse.busy)) || !bubbleOn || menuOpen || !!document.querySelector('dialog[open]') ||
-        whaleSysQueue.length > 0 || !!(bubbleScene && bubbleScene.kind !== 'random' && bubbleScene.kind !== 'reaction');
+        whaleSysQueue.length > 0 || !!(bubbleScene && bubbleScene.kind !== 'random' && bubbleScene.kind !== 'reaction' && !(allowTail === true && bubbleScene.kind === 'tail'));
     }
     var reactionNoticeClient = window.WhaleReactionNotices && window.WhaleReactionNotices.create({
       visible: function () { return !document.hidden; },

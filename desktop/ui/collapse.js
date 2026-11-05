@@ -23,6 +23,11 @@
   image.src = '/assets/dragon-maiden-tail-v1.png';
   image.alt = ''; image.draggable = false;
   button.appendChild(image); root.insertBefore(button, root.firstChild);
+  const canvas = document.createElement('canvas');
+  canvas.className = 'dshwv-tail-mesh'; canvas.hidden = true;
+  button.appendChild(canvas);
+  const mesh = new window.WhaleTailMesh.TailMesh(image, canvas);
+  rendering.onFrame(() => mesh.tick());
 
   function geometry() {
     const r = root.getBoundingClientRect();
@@ -57,19 +62,20 @@
     return { angle, outward, endRoot, rect: { left: Math.min(...corners.map(p => p.x)), top: Math.min(...corners.map(p => p.y)), size: 79 * g.k } };
   }
   function layout() {
+    if (gesture) return;
     const g = geometry();
     if (!g.r.width) return;
     let hinge;
     if (collapsed) {
       if (!edge) edge = nearestEdge(g);
       const d = dock(g);
-      stage.appendChild(button);
+      if (button.parentElement !== stage) stage.appendChild(button);
       button.classList.add('dshwv-tail-docked');
       Object.assign(button.style, { left: d.rect.left + 'px', top: d.rect.top + 'px', width: d.rect.size + 'px', height: d.rect.size + 'px' });
       hinge = { x: d.endRoot.x - d.rect.left, y: d.endRoot.y - d.rect.top };
       baseMatrix = new DOMMatrix().rotate(d.angle).scale(-g.mirror, 1).rotate(-.7 * 180 / Math.PI);
     } else {
-      root.insertBefore(button, root.firstChild);
+      if (button.parentElement !== root) root.insertBefore(button, root.firstChild);
       button.classList.remove('dshwv-tail-docked');
       button.removeAttribute('style');
       hinge = { x: (318 - 86) * g.k, y: (726 - 487) * g.k };
@@ -78,6 +84,7 @@
     const ox = 470 * sourceScale * g.k, oy = 800 * sourceScale * g.k;
     Object.assign(image.style, { width: sourceWidth * sourceScale * g.k + 'px', height: sourceHeight * sourceScale * g.k + 'px',
       left: hinge.x - ox + 'px', top: hinge.y - oy + 'px', transformOrigin: ox + 'px ' + oy + 'px', transform: baseMatrix.toString() });
+    mesh.layout(sourceScale * g.k, hinge, baseMatrix);
     button.hidden = busy;
     rendering.presentFor(200);
   }
@@ -91,6 +98,7 @@
     const [ox, oy] = s.transformOrigin.split(' ').map(Number.parseFloat);
     const matrix = stableMatrix || new DOMMatrix(s.transform);
     const p = new DOMPoint(bx - parseFloat(s.left) - ox, y - b.top - parseFloat(s.top) - oy).matrixTransform(matrix.inverse());
+    if (mesh.active && !stableMatrix) return mesh.hit({ x: p.x / mesh.units + 470, y: p.y / mesh.units + 800 });
     // The shared alpha worker packs nonsquare art bottom-right in a square.
     const size = Math.max(width, height);
     return rendering.hitCache.hit(image, p.x + ox, p.y + oy, false,
@@ -113,6 +121,7 @@
   function applyState(value) {
     collapsed = value; tailClicks = [];
     wag?.cancel(); wag = null; wagUntil = 0;
+    mesh.stop();
     localStorage.setItem(key, String(value));
     if (value) localStorage.setItem(edgeKey, edge);
     update();
@@ -258,7 +267,24 @@
       { duration: reduced ? 180 : 420, easing: 'ease-in-out' });
     rendering.presentFor(450);
   }
-  function cancelGesture() {
+  function grabVector(x, y) {
+    const rect = button.getBoundingClientRect(), style = getComputedStyle(image);
+    const [ox, oy] = style.transformOrigin.split(' ').map(Number.parseFloat);
+    const mirror = !collapsed && rendering.mirrorScale(root) < 0 ? -1 : 1;
+    return { x: (mirror < 0 ? rect.right - x : x - rect.left) - parseFloat(style.left) - ox,
+      y: y - rect.top - parseFloat(style.top) - oy, mirror };
+  }
+  function pull(dx, dy) {
+    // Convert the actual screen force through both mirrors and edge rotation.
+    // A docked tip has only a few visible pixels: keep its elastic travel
+    // proportional to character scale so pulling cannot bury it offscreen.
+    const limit = collapsed ? 10 * mesh.units / sourceScale : 34;
+    const distance = Math.hypot(dx, dy), weight = 1 / (1 + distance / limit);
+    const delta = new DOMPoint(dx * gesture.grab.mirror * weight, dy * weight).matrixTransform(baseMatrix.inverse());
+    mesh.pull(gesture.source, delta.x / mesh.units, delta.y / mesh.units);
+  }
+  function cancelGesture(preserveMesh = false) {
+    if (!preserveMesh) mesh.stop();
     if (!gesture) return;
     const id = gesture.pointerId; gesture = null;
     image.style.transform = baseMatrix.toString(); button.classList.remove('dshwv-tail-held');
@@ -269,7 +295,14 @@
     if (event.button !== 0 || gesture || !hit(event.clientX, event.clientY)) return;
     event.preventDefault(); event.stopPropagation();
     wag?.cancel(); wag = null;
-    gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now(), moved: false };
+    image.style.transform = baseMatrix.toString();
+    const grab = grabVector(event.clientX, event.clientY);
+    const point = new DOMPoint(grab.x, grab.y).matrixTransform(baseMatrix.inverse());
+    const source = mesh.sourceAt({ x: point.x / mesh.units + 470, y: point.y / mesh.units + 800 });
+    if (!source) return;
+    mesh.begin();
+    gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+      grab, source, at: performance.now(), moved: false };
     button.setPointerCapture(event.pointerId); button.classList.add('dshwv-tail-held');
   });
   document.addEventListener('pointermove', event => {
@@ -277,26 +310,25 @@
     const dx = event.clientX - gesture.x, dy = event.clientY - gesture.y;
     const distance = Math.hypot(dx, dy);
     if (distance >= 8) { gesture.moved = true; tailClicks = []; }
-    const sideways = collapsed && edge !== 'bottom' ? dy : dx;
-    const mirror = !collapsed && rendering.mirrorScale(root) < 0 ? -1 : 1;
-    image.style.transform = bend(Math.max(-7, Math.min(7, sideways / 7)) * mirror, 1 + Math.min(14, distance) / 300);
+    pull(dx, dy);
     rendering.presentFor(100);
   }, true);
   document.addEventListener('pointerup', event => {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
     event.preventDefault(); event.stopPropagation();
     const held = gesture.moved || performance.now() - gesture.at >= 260, moved = gesture.moved;
-    const released = image.style.transform; cancelGesture();
+    cancelGesture(true);
     if (collapsed) {
-      if (moved) { setCollapsed(false, 'pull'); return; }
+      if (moved) { mesh.release(180, () => setCollapsed(false, 'pull')); return; }
       const now = performance.now();
+      mesh.stop();
       tailClicks = held ? [] : tailClicks.filter(at => now - at <= 1200);
       if (!held) tailClicks.push(now);
       if (tailClicks.length >= 4) setCollapsed(false, 'rapid'); else sway();
-    } else if (held) { sway(released); window.dispatchEvent(new Event('whale-tail-tug')); }
+    } else if (held) { mesh.release(); window.dispatchEvent(new Event('whale-tail-tug')); }
     else setCollapsed(true);
   }, true);
-  document.addEventListener('pointercancel', cancelGesture, true);
+  document.addEventListener('pointercancel', () => cancelGesture(), true);
   button.addEventListener('lostpointercapture', event => { if (gesture?.pointerId === event.pointerId) cancelGesture(); });
   button.addEventListener('click', event => { event.stopPropagation(); if (!event.detail && !busy) setCollapsed(!collapsed); });
   button.addEventListener('keydown', event => {
@@ -311,6 +343,19 @@
   window.addEventListener('whale-position-committed', () => { if (!busy) layout(); });
   new ResizeObserver(() => { if (!busy && !gesture) layout(); }).observe(root);
   image.addEventListener('load', () => rendering.hitCache.prepare(image.src).then(() => rendering.presentFor()));
+  if (window.whaleDesktop?.testMode) window.__whaleTailTest = {
+    state: () => ({ active: mesh.active, frames: mesh.frames, points: mesh.points, rest: window.WhaleTailMesh.rest,
+      triangles: mesh.triangles?.length || 0, units: mesh.units }),
+    sourceAt(x, y) {
+      const vector = grabVector(x, y), point = new DOMPoint(vector.x, vector.y).matrixTransform(baseMatrix.inverse());
+      return mesh.sourceAt({ x: point.x / mesh.units + 470, y: point.y / mesh.units + 800 });
+    },
+    screenAt(source) {
+      const p = mesh.map(source), g = grabVector(0, 0);
+      const point = new DOMPoint((p.x - 470) * mesh.units, (p.y - 800) * mesh.units).matrixTransform(baseMatrix);
+      return { x: (point.x - g.x) * g.mirror, y: point.y - g.y };
+    }
+  };
   window.WhaleCollapse = Object.freeze({
     get collapsed() { return collapsed; }, get busy() { return busy; }, get edge() { return edge; },
     hit,

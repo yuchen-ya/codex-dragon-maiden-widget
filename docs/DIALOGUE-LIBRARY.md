@@ -36,6 +36,8 @@
 | revision / problem / accepted | 返工 / 问题反馈 / 认可方案 |
 | frustration / task / discussion | 工作中受挫 / 任务安排 / 讨论提问 |
 
+轻拉尾巴按 10 秒间隔划分一轮：第一次只回弹，不说话；第二、第三次分别读取 `tail_pull` 的前两句，第三次后 20 秒内不回应尾巴互动。安静期内继续拉扯不会延长计时或补播台词；结束后重新从第一次开始。快速连点唤醒仍使用 `tail_rapid`，但也遵守这段安静期。隐藏期间始终不弹气泡，拖拽唤醒只在展开结束后计为一次拉扯。个人库不足两句时沿用同组循环规则，空组保持安静。
+
 `id` 由 1–48 位字母、数字、下划线或短横线组成，同一分组不要重复。`tone` 可选 proud、celebrate、support、comment，缺省 comment。`minRemainingPercent` 可选 0–100 的数字，主要用于 quotes 中的满额度文案。引用文案出处保留在 [quote-sources.json](quote-sources.json)；修改默认引用时同步核对出处。
 
 ## 称呼

@@ -216,6 +216,7 @@ export function createDispatcher({ dataDir = DATA_HOME, interactionDataDir = dat
       uiFiles['/jev-settings.js']='jev-settings.js';
       uiFiles['/reaction-notices.js']='reaction-notices.js';
       uiFiles['/collapse.js']='collapse.js';
+      uiFiles['/tail-mesh.js']='tail-mesh.js';
       uiFiles['/dialogue.js']='dialogue.js';
       let file;
       if (Object.hasOwn(uiFiles, url.pathname)) file = path.join(ROOT, 'desktop', 'ui', uiFiles[url.pathname]);

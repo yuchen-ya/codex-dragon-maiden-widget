@@ -99,13 +99,11 @@ export class SendReactions {
       ageMs: Math.max(0, at - event.at), timeoutMs });
     try {
       const result = await this.connection.decide(state, REACTION_QUESTIONS, { signal: controller.signal, timeoutMs });
-      if (epoch !== this.epoch || controller.signal.aborted) return;
-      if (!result) return skip('disabled');
-      const blockedAfterRequest = this.unavailableReason();
-      if (blockedAfterRequest) return skip(blockedAfterRequest);
-      if (this.now() - event.at >= REACTION_WINDOW_MS) return skip('result-expired');
+      if (!result) {
+        if (epoch === this.epoch) skip('disabled');
+        return;
+      }
       const line = chooseReaction(result, state, this.lastLineId, this.dialogues);
-      this.error = ''; this.lastDecision = line ? 'eligible' : 'silent';
       const decisions = Object.fromEntries(Object.entries(REACTION_QUESTIONS).map(([name, question]) => {
         const answer = result.answers[name];
         return [name, question.type === 'noul' ? answer.noul : { choice: answer.choice, probability: answer.probabilities[answer.choice] }];
@@ -113,6 +111,13 @@ export class SendReactions {
       this.diagnostics({ event: 'decision', trace, elapsedMs: this.now() - at, decisions,
         lineId: line?.id || null, reason: line ? 'eligible' : result.answers.hold_back.noul >= 0.5 ? 'hold-back' :
           result.answers.occasion.probabilities[result.answers.occasion.choice] < 0.55 ? 'low-confidence' : 'no-matching-occasion' });
+      // A completed, valid judgment remains useful for anonymous statistics,
+      // even if its display was cancelled or expired while awaiting the model.
+      if (epoch !== this.epoch || controller.signal.aborted) return;
+      const blockedAfterRequest = this.unavailableReason();
+      if (blockedAfterRequest) return skip(blockedAfterRequest);
+      if (this.now() - event.at >= REACTION_WINDOW_MS) return skip('result-expired');
+      this.error = ''; this.lastDecision = line ? 'eligible' : 'silent';
       if (!line) return;
       this.notice = { id: randomUUID(), trace, tone: line.tone, text: line.text, lineId: line.id, expiresAt: event.at + REACTION_WINDOW_MS };
       this.diagnostics({ event: 'notice-ready', trace, lineId: line.id });

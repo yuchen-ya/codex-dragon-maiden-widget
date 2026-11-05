@@ -4,9 +4,9 @@ import { SendReactions } from '../runtime/send-reactions.mjs';
 import { REACTION_QUESTIONS, chooseReaction } from '../runtime/reaction-policy.mjs';
 import { JevConnectionError } from '../runtime/jev-connection.mjs';
 
-function result({ relation = 'unavailable', emotion = 'strong_positive', occasion = 'finished', holdBack = 0.01 } = {}) {
+function result({ relation = 'unavailable', emotion = 'strong_positive', occasion = 'finished', mood = 'pleased', intent = 'report', holdBack = 0.01 } = {}) {
   const answers = { hold_back: { type: 'noul', noul: holdBack } };
-  for (const [name, choice] of Object.entries({ relation, emotion, occasion })) {
+  for (const [name, choice] of Object.entries({ relation, emotion, occasion, mood, intent })) {
     answers[name] = { type: 'choice', choice, probabilities: Object.fromEntries(Object.keys(REACTION_QUESTIONS[name].criteria).map(key => [key, key === choice ? 1 : 0])) };
   }
   return { answers };
@@ -77,6 +77,20 @@ test('expired results, menu conflicts and real interaction reminders never appea
   assert.equal(f.service.poll(f.context).notice, null);
   f.block(false); f.service.poll({ visible: true, blocked: true });
   await f.send('menu'); assert.equal(f.calls.length, 2);
+  assert.equal(f.diagnostics.filter(record => record.event === 'decision').length, 2,
+    'valid returned classifications are retained even when expired or blocked');
+});
+
+test('one model call supplies mood and intent statistics even when the chosen reaction is silent', async t => {
+  const f = fixture(t, async () => result({ mood: 'worried', intent: 'ask', holdBack: .9 }));
+  f.enable(); await f.send('quiet', '先别打扰。');
+  assert.equal(f.calls.length, 1);
+  assert.ok(f.calls[0][1].mood && f.calls[0][1].intent);
+  assert.equal(f.service.poll(f.context).notice, null);
+  const decision = f.diagnostics.find(record => record.event === 'decision');
+  assert.deepEqual(decision.decisions.mood, { choice: 'worried', probability: 1 });
+  assert.deepEqual(decision.decisions.intent, { choice: 'ask', probability: 1 });
+  assert.ok(!JSON.stringify(f.diagnostics).includes('先别打扰'));
 });
 
 test('an observed transient business reminder permanently invalidates the old judgment', async t => {

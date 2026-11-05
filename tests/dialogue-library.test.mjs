@@ -56,7 +56,7 @@ test('address substitution is literal, bounded and does not reinterpret custom t
 
 test('edited reaction IDs, one remaining line and a deleted scene work without fixed ID assumptions', () => {
   const answers = { hold_back: { type: 'noul', noul: 0 } };
-  for (const [name, choice] of Object.entries({ relation: 'unavailable', emotion: 'weak_or_none', occasion: 'task' })) {
+  for (const [name, choice] of Object.entries({ relation: 'unavailable', emotion: 'weak_or_none', occasion: 'task', mood: 'neutral', intent: 'instruct' })) {
     answers[name] = { type: 'choice', choice, probabilities: Object.fromEntries(Object.keys(REACTION_QUESTIONS[name].criteria).map(key => [key, key === choice ? 1 : 0])) };
   }
   const library = core.normalizeLibrary({ version: 1, groups: { task: [{ id: 'new-line', text: '{title}，继续。' }] } });

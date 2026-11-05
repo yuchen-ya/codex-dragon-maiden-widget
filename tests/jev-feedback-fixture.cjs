@@ -43,7 +43,7 @@ async function main() {
     const request = JSON.parse(Buffer.concat(chunks));
     calls++; uploaded.push(request.state);
     const answers = { hold_back: { type: 'noul', noul: 0.05 } };
-    for (const [name, choice] of Object.entries({ relation: 'unavailable', emotion: 'weak_or_none', occasion: 'revision' })) {
+    for (const [name, choice] of Object.entries({ relation: 'unavailable', emotion: 'weak_or_none', occasion: 'revision', mood: 'neutral', intent: 'instruct' })) {
       answers[name] = { type: 'choice', choice, probabilities: Object.fromEntries(Object.keys(REACTION_QUESTIONS[name].criteria).map(label => [label, label === choice ? 1 : 0])) };
     }
     res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ answers }));
@@ -114,6 +114,9 @@ async function main() {
   const raw = fs.readFileSync(path.join(dataDir, 'jev-reactions.jsonl'), 'utf8');
   for (const value of ['这版还没到位', 'FAKE_ONLY', 'fixture-thread', rollout]) assert.ok(!raw.includes(value));
   assert.deepEqual(uploaded, [{ route: 'user_only', user_message: '这版还没到位，再调整一下。' }]);
+  const statistics = JSON.parse(fs.readFileSync(path.join(dataDir, 'jev-statistics.json')));
+  assert.equal(Object.values(statistics.days)[0].intent.instruct, 1);
+  assert.equal(Object.values(statistics.days)[0].mood.neutral, 1);
   assert.deepEqual(errors, []);
   checks.push('内部日志无正文、密钥、原始消息/聊天标识或本机源路径；renderer 无错误');
   await ev("document.querySelector('.whale-jev-dialog').close();document.querySelector('.dshwv-menu-btn').click()");

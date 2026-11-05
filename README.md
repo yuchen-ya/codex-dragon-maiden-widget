@@ -10,9 +10,9 @@ Windows / macOS 桌宠，随 Codex 窗口显示、隐藏，查看额度并提醒
 
 - 点击角色查看订阅额度，菜单查看模型用量、生成速度和 API 费用估算。
 - 提问、授权和完成提醒；两套形象，支持拖动、缩放、翻转和自定义素材。
-- 点击尾尖收起，完全免打扰；单击摇尾，拖拽或 1.2 秒内点 4 次展开。
+- 拉尾会形变回弹；点击尾尖收起，完全免打扰，拖拽或 1.2 秒内点 4 次展开。
 - 自定义称呼，默认“老大”；[个人台词库](docs/DIALOGUE-LIBRARY.md) 可直接编辑，更新时保留。
-- **Jev 情境反应默认关闭**：开启后，根据新发送的短文字简短接话，无聊天窗口。支持自选兼容服务及直连 / HTTP(S) 代理。
+- **Jev 情境反应默认关闭**：根据新发送的短文字简短接话，同次请求标注心情和意图，在本地累计匿名统计。支持自选兼容服务及直连 / HTTP(S) 代理。
 
 ## 安装
 
@@ -41,7 +41,7 @@ Node.js 24+；打包另需 Python 3.10+。
 ```sh
 npm test
 node scripts/check-package.mjs
-python scripts/build-release.py --release-tag v0.1.12
+python scripts/build-release.py --release-tag v0.1.13
 ```
 
 产物位于 `dist/`，构建不会自动发布。开发约定见 [AGENTS.md](AGENTS.md)。

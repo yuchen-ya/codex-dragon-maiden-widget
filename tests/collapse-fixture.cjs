@@ -133,6 +133,22 @@ async function checkHiddenPull(name) {
   await ev("window.dispatchEvent(new Event('blur'))");
   win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
 }
+async function checkPressAttachment() {
+  const before = await ev(`({hinge:__whaleTailTest.screenAt({x:470,y:800}),
+    body:document.querySelector('.dshwv-body').getBoundingClientRect().toJSON()})`);
+  await ev("WhaleGesture.apply(document.querySelector('.dshwv-body'),true,'balanced')");
+  await delay(130);
+  const pressed = await ev('__whaleTailTest.screenAt({x:470,y:800})');
+  const cx = before.body.left + before.body.width / 2, bottom = before.body.bottom;
+  assert.ok(Math.abs(pressed.x - (cx + (before.hinge.x - cx) * 1.05)) < .5, 'tail attachment follows horizontal body press');
+  assert.ok(Math.abs(pressed.y - (bottom + (before.hinge.y - bottom) * .88)) < .5, 'tail attachment follows vertical body press');
+  const point = await tailPoint();
+  const roundtrip = await ev(`__whaleTailTest.screenAt(__whaleTailTest.sourceAt(${point.x},${point.y}))`);
+  assert.ok(Math.hypot(point.x - roundtrip.x, point.y - roundtrip.y) < .5, 'pressed tail hit coordinates round-trip');
+  await capture('pressed-' + (await ev('__whaleRenderTest.status().flip') ? 'mirror' : 'normal'));
+  await ev("WhaleGesture.apply(document.querySelector('.dshwv-body'),false,'balanced')");
+  await delay(200);
+}
 async function auditDeformation() {
   win.webContents.debugger.attach('1.3');
   await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
@@ -145,6 +161,7 @@ async function auditDeformation() {
     await wait(`window.__whaleTailTest && WhaleRendering.hitCache.stats.decodes>=2 && __whaleRenderTest.status().flip===${mirror}`, 'audit layout');
     await ev(`window.__tailDrawTimes=[];(()=>{const prototype=WhaleTailMesh.TailMesh.prototype,draw=prototype.draw;prototype.draw=function(){const at=performance.now();draw.call(this);__tailDrawTimes.push(performance.now()-at);};})()`);
     await delay(400);
+    await checkPressAttachment();
     const point = await tailPoint(), x = Math.round(point.x), y = Math.round(point.y);
     const hinge = await ev('__whaleTailTest.screenAt({x:470,y:800})');
     const length = Math.hypot(x - hinge.x, y - hinge.y);
@@ -215,7 +232,7 @@ async function auditDeformation() {
     click(await tailPoint()); await wait('WhaleCollapse.collapsed && !WhaleCollapse.busy', 'audit side hide');
     await checkHiddenPull(side + '-mesh-audit');
   }
-  checks.push('普通与镜像的拉直回弹、四向受力截图和关节数据已采集；透明网格接缝检查通过，静止后停止绘制，侧边拖尾仍连接边缘');
+  checks.push('正反向按压时身体与尾根同步、命中换算正确；拖尾与回弹无透明接缝，静止后停止绘制，侧边拖尾仍连接边缘');
 }
 async function sourceAttachment() {
   return ev(`(() => {

@@ -1,25 +1,23 @@
-# Codex 小龙娘 v0.1.13
+# Codex 小龙娘 v0.1.14
 
-尾巴可以拉直和回弹，Jev 同次判断增加本地匿名情境统计。
+修复身体按压时尾巴不跟随，以及拖尾时急折、挤皱和贴图翻面的问题。
 
 ## 更新
 
-- **尾巴形变**：尾根固定，拉扯时逐段展开弧度，松手回卷、轻摆后停稳；重抓自然接续，静止后停止绘制。修正镜像/贴边受力、透明细缝及小尺寸尾尖出界，点击区域随形变更新。
-- **互动节奏**：10 秒内第一次拉扯安静，第二、第三次表达不满，随后 20 秒不回应尾巴互动。收起后继续完全免打扰；拖拽或 1.2 秒内点击 4 次恢复。
-- **Jev 匿名统计**：同次请求标注心情和认同、商量、反对、请教、继续等意图，本地按天累计，低置信度单独记录。有效返回即使没弹气泡也统计；调用前跳过及失败不计，不追加云端请求补齐、不回溯历史。
-
-Jev 默认关闭，计费按服务商规则；统计只代表实际分析样本，不是心理诊断。短文字仍发送给所选云端服务，自动过滤不能保证没有隐私泄漏。[功能与隐私说明](https://github.com/yuchen-ya/codex-dragon-maiden-widget/blob/v0.1.13/docs/INTENT-AWARENESS.md)
+- 展开尾巴与身体共用按压变换，尾根保持连接；命中及拖拽坐标同步处理缩放和镜像。
+- 尾巴改为平滑限幅的连续形变，牵拉范围随角色大小变化，松手轻摆回位；保留原素材、收起动画及互动节奏。
+- 修正小尺寸尾尖坐标的取整误差，清理旧关节算法、无用采样及冗余防御判断。
 
 ## 安装
 
-下载 **Codex-Dragon-Maiden-v0.1.13.zip**，完整解压后运行 Windows 的 `安装插件.cmd` 或 macOS 的 `安装 Mac 自动跟随.command`。需已登录的 Codex 桌面端、Node.js 24+ 和 npm；Mac 另需 Xcode Command Line Tools，首次安装需要联网。
+下载 **Codex-Dragon-Maiden-v0.1.14.zip**，完整解压后运行 Windows 的 `安装插件.cmd` 或 macOS 的 `安装 Mac 自动跟随.command`。需要已登录的 Codex 桌面端、Node.js 24+ 和 npm；Mac 另需 Xcode Command Line Tools，首次安装需要联网。
 
-更新保留设置、素材和个人台词库。个人台词库不会自动覆盖为新版模板；需要新默认措辞时可按 [编辑说明](https://github.com/yuchen-ya/codex-dragon-maiden-widget/blob/v0.1.13/docs/DIALOGUE-LIBRARY.md) 合入，新的互动节奏直接生效。首次安装或命令改变后，请在 Codex Hooks 界面审核提醒 Hook。
+更新保留设置、素材、个人台词库及 Jev 配置。首次安装或提醒 Hook 命令改变后，由用户在 Codex Hooks 界面审核并信任。
 
-安装包及 `-source.zip` 均附 SHA-256 校验文件和构建清单；个人配置、认证、会话、日志、统计和测试截图不进入发布包。
+安装包及 `-source.zip` 均附 SHA-256 校验文件和构建清单；个人配置、认证、会话、日志、统计、录屏和测试截图不进入发布包。
 
 ## 验证
 
-595 项 Node 测试：592 通过、3 跳过；26 项尾巴交互检查、40 张形变抽帧、12 项 Jev Electron 检查、13 项发布隐私测试与包检查通过。[详细记录](https://github.com/yuchen-ya/codex-dragon-maiden-widget/blob/v0.1.13/docs/VALIDATION.md)
+596 项 Node 测试：593 通过、3 跳过；26 项隔离 Electron 交互回归、按压连接与拖尾形变专项检查、13 项发布隐私测试及包检查通过。覆盖左右镜像、最小/最大尺寸、收起/唤醒、贴边牵拉、回弹、像素命中和极端受力下网格不翻面。[详细记录](https://github.com/yuchen-ya/codex-dragon-maiden-widget/blob/v0.1.14/docs/VALIDATION.md)
 
-本轮未重新进行 macOS 硬件验收；保留既有 Apple Silicon 验证记录，Intel 未实测。代码 MIT，媒体按各自条款分发，保留上游和 macOS 贡献署名。非 OpenAI 官方产品。
+Electron 交互检查使用合成鼠标输入。本轮未重新进行 macOS 硬件验收，保留既有 Apple Silicon 验证记录，Intel 未实测。代码 MIT，媒体按各自条款分发；来源与贡献署名见 [来源记录](https://github.com/yuchen-ya/codex-dragon-maiden-widget/blob/v0.1.14/PROVENANCE.md)。非 OpenAI 官方产品。

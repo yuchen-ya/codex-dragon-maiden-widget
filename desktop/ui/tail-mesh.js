@@ -1,100 +1,47 @@
 (() => {
   'use strict';
   const root = { x: 470, y: 800 };
-  const controls = [root, { x: 720, y: 730 }, { x: 960, y: 590 },
+  // Reference points from the source artwork; deformation is one smooth field.
+  const rest = [root, { x: 720, y: 730 }, { x: 960, y: 590 },
     { x: 1070, y: 410 }, { x: 1090, y: 240 }, { x: 1240, y: 200 }];
-  const rest = [];
-  // The same smooth source spine used to author the collapse animation.
-  for (let i = 0; i < controls.length - 1; i++) {
-    const a = controls[i - 1] || { x: 2 * controls[i].x - controls[i + 1].x, y: 2 * controls[i].y - controls[i + 1].y };
-    const b = controls[i], c = controls[i + 1];
-    const d = controls[i + 2] || { x: 2 * c.x - b.x, y: 2 * c.y - b.y };
-    for (let j = 0; j < 8; j++) {
-      const u = j / 8, point = {};
-      for (const axis of ['x', 'y']) point[axis] = .5 * (2 * b[axis] + (-a[axis] + c[axis]) * u +
-        (2 * a[axis] - 5 * b[axis] + 4 * c[axis] - d[axis]) * u * u + (-a[axis] + 3 * b[axis] - 3 * c[axis] + d[axis]) * u * u * u);
-      rest.push(point);
-    }
-  }
-  rest.push(controls.at(-1));
-  const lengths = rest.slice(1).map((p, i) => Math.hypot(p.x - rest[i].x, p.y - rest[i].y));
-  const angles = rest.slice(1).map((p, i) => Math.atan2(p.y - rest[i].y, p.x - rest[i].x));
   const copy = points => points.map(p => ({ ...p }));
-  const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
+  const tip = rest.at(-1);
+  const fixedRadius = 150;
+  const bendSpan = Math.hypot(tip.x - root.x, tip.y - root.y) - fixedRadius;
+  const maxPull = 160;
 
   function project(point) {
-    let best = Infinity, result;
-    for (let i = 0; i < lengths.length; i++) {
-      const a = rest[i], b = rest[i + 1], dx = b.x - a.x, dy = b.y - a.y;
-      const u = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengths[i] ** 2));
-      const x = point.x - a.x - dx * u, y = point.y - a.y - dy * u;
-      const distance = x * x + y * y;
-      if (distance < best) { best = distance; result = { ...point, joint: i, u, dx: x, dy: y }; }
-    }
-    return result;
+    const t = Math.max(0, Math.min(1, (Math.hypot(point.x - root.x, point.y - root.y) - fixedRadius) / bendSpan));
+    return { ...point, weight: t * t * (3 - 2 * t) };
   }
   function mapPoint(p, points) {
-    const a = points[p.joint], b = points[p.joint + 1];
-    const angle = Math.atan2(b.y - a.y, b.x - a.x) - angles[p.joint];
-    return { x: a.x + (b.x - a.x) * p.u + p.dx * Math.cos(angle) - p.dy * Math.sin(angle),
-      y: a.y + (b.y - a.y) * p.u + p.dx * Math.sin(angle) + p.dy * Math.cos(angle) };
+    const end = points.at(-1);
+    return { x: p.x + (end.x - tip.x) * p.weight, y: p.y + (end.y - tip.y) * p.weight };
+  }
+  function pose(dx, dy) {
+    return rest.map(point => {
+      const p = project(point);
+      return { x: p.x + dx * p.weight, y: p.y + dy * p.weight };
+    });
   }
   function solve(grab, dx, dy, start = rest) {
-    const points = copy(start);
-    const material = mapPoint(grab, start), goal = { x: material.x + dx, y: material.y + dy };
-    const anchor = start[4], reach = lengths.slice(4, grab.joint + 1).reduce((sum, length) => sum + length, 0);
-    const currentReach = Math.hypot(material.x - anchor.x, material.y - anchor.y);
-    const extension = Math.hypot(goal.x - anchor.x, goal.y - anchor.y) - currentReach;
-    const tension = Math.max(0, Math.min(.95, extension / Math.max(80, reach - currentReach)));
-    const direction = Math.atan2(goal.y - anchor.y, goal.x - anchor.x);
-    let distalTurn = 0;
-    // Seed a smooth uncoiling under tension. Otherwise a centre-seeking joint
-    // solver can satisfy the cursor using several small zigzags near the tip.
-    for (let i = 4; i < lengths.length; i++) {
-      const angle = Math.atan2(start[i + 1].y - start[i].y, start[i + 1].x - start[i].x);
-      if (i <= grab.joint) distalTurn = wrap(direction - angle) * tension * Math.min(1, (i - 3) / 6);
-      points[i + 1] = { x: points[i].x + Math.cos(angle + distalTurn) * lengths[i],
-        y: points[i].y + Math.sin(angle + distalTurn) * lengths[i] };
-    }
-    const reference = points.slice(1).map((point, i) => Math.atan2(point.y - points[i].y, point.x - points[i].x));
-    // Fixed-length links unfold under outward tension, rather than stretching
-    // the picture. Rotate the real held material point (including fin/outline
-    // offsets), not a rounded centreline joint. The first four links stay fixed.
-    for (let iteration = 0; iteration < 16; iteration++) {
-      for (let i = grab.joint; i >= 4; i--) {
-        const held = mapPoint(grab, points), pivot = points[i];
-        const ax = held.x - pivot.x, ay = held.y - pivot.y;
-        const bx = goal.x - pivot.x, by = goal.y - pivot.y;
-        const angle = Math.max(-.18, Math.min(.18, Math.atan2(ax * by - ay * bx, ax * bx + ay * by)));
-        const cos = Math.cos(angle), sin = Math.sin(angle);
-        for (let j = i + 1; j < points.length; j++) {
-          const x = points[j].x - pivot.x, y = points[j].y - pivot.y;
-          points[j] = { x: pivot.x + x * cos - y * sin, y: pivot.y + x * sin + y * cos };
-        }
-      }
-      // Spread a joint correction through its neighbours, retaining the smooth
-      // seeded curve instead of leaving a sharp elbow or a sawtooth at the tip.
-      const offsets = points.slice(1).map((point, i) => wrap(Math.atan2(point.y - points[i].y, point.x - points[i].x) - reference[i]));
-      for (let i = 4; i < lengths.length; i++) {
-        const previous = i === 4 ? 0 : offsets[i - 1], next = offsets[i + 1] ?? offsets[i];
-        const angle = reference[i] + offsets[i] * .3 + (previous + next) * .35;
-        points[i + 1] = { x: points[i].x + Math.cos(angle) * lengths[i], y: points[i].y + Math.sin(angle) * lengths[i] };
-      }
-    }
-    return points;
+    const end = start.at(-1);
+    const weight = Math.max(.15, grab.weight);
+    const x = end.x - tip.x + dx / weight, y = end.y - tip.y + dy / weight;
+    const distance = Math.hypot(x, y);
+    const scale = distance > maxPull ? maxPull / distance : 1;
+    // A single smooth displacement field keeps the root fixed and the outline
+    // continuous. Its maximum spatial gradient is 1.5 * maxPull / bendSpan < 1,
+    // so a pull cannot reverse the texture or fold neighbouring triangles.
+    return pose(x * scale, y * scale);
   }
   function rebound(points, elapsed, duration, reduced = false) {
     if (elapsed >= duration) return copy(rest);
-    const result = [{ ...root }];
-    for (let i = 0; i < lengths.length; i++) {
-      const offset = wrap(Math.atan2(points[i + 1].y - points[i].y, points[i + 1].x - points[i].x) - angles[i]);
-      const t = Math.max(0, elapsed - 35 * i / lengths.length) / duration;
-      const fade = (1 - t) ** 2;
-      const weight = reduced ? fade : Math.exp(-3 * t) * (Math.cos(11 * t) + .6 * Math.sin(11 * t)) * fade;
-      const angle = angles[i] + offset * weight;
-      result.push({ x: result[i].x + Math.cos(angle) * lengths[i], y: result[i].y + Math.sin(angle) * lengths[i] });
-    }
-    return result;
+    const t = elapsed / duration;
+    const fade = (1 - t) ** 2;
+    const weight = reduced ? fade : Math.exp(-3 * t) * (Math.cos(11 * t) + .6 * Math.sin(11 * t)) * fade;
+    const end = points.at(-1);
+    return pose((end.x - tip.x) * weight, (end.y - tip.y) * weight);
   }
   function triangle(context, image, source, target) {
     const [p, q, r] = source, [a, b, c] = target;
@@ -198,7 +145,6 @@
       for (let i = this.targets.length - 1; i >= 0; i--) {
         const [a, b, c] = this.targets[i], [p, q, r] = this.triangles[i];
         const det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-        if (Math.abs(det) < .001) continue;
         const u = ((point.x - a.x) * (c.y - a.y) - (point.y - a.y) * (c.x - a.x)) / det;
         const v = ((b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x)) / det;
         if (u < 0 || v < 0 || u + v > 1) continue;

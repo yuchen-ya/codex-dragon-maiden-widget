@@ -8,17 +8,21 @@ vm.runInNewContext(fs.readFileSync(new URL('../desktop/ui/tail-mesh.js', import.
 const { rest, project, mapPoint, solve, rebound } = context.window.WhaleTailMesh;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const grab = project(rest.at(-1));
+const attachment = [rest[0], { x: 570, y: 800 }, { x: 470, y: 700 }, { x: 400, y: 880 }];
 const curvature = points => points.slice(1, -1).reduce((sum, p, i) => {
   const a = points[i], b = points[i + 2];
   const turn = Math.atan2(b.y - p.y, b.x - p.x) - Math.atan2(p.y - a.y, p.x - a.x);
   return sum + Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
 }, 0);
 
-test('outward tension unfolds the curved tail without moving its root or stretching its links', () => {
+test('outward tension follows the pull while the attachment stays fixed and local strain stays bounded', () => {
   const pulled = solve(grab, 180, -170);
-  assert.ok(curvature(pulled) < curvature(rest) * .8);
-  for (let i = 0; i <= 4; i++) assert.deepEqual(pulled[i], rest[i]);
-  for (let i = 1; i < rest.length; i++) assert.ok(Math.abs(distance(pulled[i], pulled[i - 1]) - distance(rest[i], rest[i - 1])) < 1e-8);
+  assert.ok(curvature(pulled) < curvature(rest));
+  for (const point of attachment) assert.equal(distance(mapPoint(project(point), pulled), point), 0);
+  for (let i = 1; i < rest.length; i++) {
+    const ratio = distance(pulled[i], pulled[i - 1]) / distance(rest[i], rest[i - 1]);
+    assert.ok(ratio > .7 && ratio < 1.3);
+  }
   assert.ok(distance(pulled.at(-1), pulled[0]) > distance(rest.at(-1), rest[0]));
 });
 
@@ -30,15 +34,33 @@ test('all four force directions move the held centre in the force direction', ()
   }
 });
 
-test('release changes joint angles through a return swing and finishes exactly at the rest curve', () => {
+test('release returns the whole curve through a gentle swing and finishes at rest', () => {
   const pulled = solve(grab, 180, -170);
   const released = [0, 80, 180, 300, 500, 700].map(ms => rebound(pulled, ms, 700));
   assert.ok(distance(released[0].at(-1), pulled.at(-1)) < 1e-8);
   assert.ok(curvature(released[2]) > curvature(pulled));
   assert.ok(distance(released[3].at(-1), rest.at(-1)) > .1);
   assert.deepEqual(released.at(-1), rest);
-  for (const pose of released) for (let i = 1; i < rest.length; i++) {
-    assert.ok(Math.abs(distance(pose[i], pose[i - 1]) - distance(rest[i], rest[i - 1])) < 1e-8);
+  for (const pose of released) for (const point of attachment) assert.equal(distance(mapPoint(project(point), pose), point), 0);
+});
+
+test('inward, sideways and extreme pulls never fold the texture during dragging or rebound', () => {
+  const triangles = [];
+  for (let y = 0; y < 1024; y += 32) for (let x = 0; x < 1536; x += 32) {
+    const a = project({ x, y }), b = project({ x: x + 32, y }), c = project({ x, y: y + 32 }), d = project({ x: x + 32, y: y + 32 });
+    triangles.push([a, b, c], [b, d, c]);
+  }
+  const area = ([a, b, c]) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  for (const point of [{ x: 1110, y: 220 }, { x: 1080, y: 300 }, rest.at(-1)]) {
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+      const pulled = solve(project(point), Math.cos(angle) * 2000, Math.sin(angle) * 2000);
+      for (const pose of [pulled, rebound(pulled, 100, 700), rebound(pulled, 300, 700)]) {
+        for (const triangle of triangles) {
+          const ratio = area(triangle.map(p => mapPoint(p, pose))) / area(triangle);
+          assert.ok(ratio > .7 && ratio < 1.3, 'texture must keep its winding and bounded area: ' + ratio);
+        }
+      }
+    }
   }
 });
 

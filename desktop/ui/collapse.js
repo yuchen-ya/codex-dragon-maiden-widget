@@ -2,6 +2,7 @@
   'use strict';
   const root = document.querySelector('.dshwv-root');
   if (!root) return;
+  const body = root.querySelector('.dshwv-body');
   const rendering = window.WhaleRendering;
   const key = 'dshw-collapsed';
   const edgeKey = 'dshw-collapse-edge';
@@ -22,7 +23,7 @@
   const image = document.createElement('img');
   image.src = '/assets/dragon-maiden-tail-v1.png';
   image.alt = ''; image.draggable = false;
-  button.appendChild(image); root.insertBefore(button, root.firstChild);
+  button.appendChild(image); body.insertBefore(button, body.firstChild);
   const canvas = document.createElement('canvas');
   canvas.className = 'dshwv-tail-mesh'; canvas.hidden = true;
   button.appendChild(canvas);
@@ -75,7 +76,7 @@
       hinge = { x: d.endRoot.x - d.rect.left, y: d.endRoot.y - d.rect.top };
       baseMatrix = new DOMMatrix().rotate(d.angle).scale(-g.mirror, 1).rotate(-.7 * 180 / Math.PI);
     } else {
-      if (button.parentElement !== root) root.insertBefore(button, root.firstChild);
+      if (button.parentElement !== body) body.insertBefore(button, body.firstChild);
       button.classList.remove('dshwv-tail-docked');
       button.removeAttribute('style');
       hinge = { x: (318 - 86) * g.k, y: (726 - 487) * g.k };
@@ -90,17 +91,16 @@
   }
   function tailImageHit(x, y, stableMatrix) {
     if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return false;
-    const b = button.getBoundingClientRect(), s = getComputedStyle(image);
+    const s = getComputedStyle(image);
     const width = parseFloat(s.width), height = parseFloat(s.height);
-    if (!b.width || !width) return false;
-    const mirror = !collapsed && rendering.mirrorScale(root) < 0;
-    const bx = mirror ? b.right - x : x - b.left;
-    const [ox, oy] = s.transformOrigin.split(' ').map(Number.parseFloat);
+    if (!button.getBoundingClientRect().width || !width) return false;
+    const grab = grabVector(x, y);
     const matrix = stableMatrix || new DOMMatrix(s.transform);
-    const p = new DOMPoint(bx - parseFloat(s.left) - ox, y - b.top - parseFloat(s.top) - oy).matrixTransform(matrix.inverse());
+    const p = new DOMPoint(grab.x, grab.y).matrixTransform(matrix.inverse());
     if (mesh.active && !stableMatrix) return mesh.hit({ x: p.x / mesh.units + 470, y: p.y / mesh.units + 800 });
     // The shared alpha worker packs nonsquare art bottom-right in a square.
     const size = Math.max(width, height);
+    const [ox, oy] = s.transformOrigin.split(' ').map(Number.parseFloat);
     return rendering.hitCache.hit(image, p.x + ox, p.y + oy, false,
       { left: width - size, top: height - size, width: size, height: size });
   }
@@ -111,7 +111,7 @@
   }
   function update() {
     root.classList.toggle('dshwv-collapsed', collapsed);
-    root.querySelector('.dshwv-body').inert = collapsed || busy;
+    body.inert = collapsed || busy;
     button.removeAttribute('title');
     button.setAttribute('aria-label', collapsed ? '单击摇尾巴，拖动或在1.2秒内点击4次展开小龙娘' : '点击尾尖收起，按住可轻拉尾巴');
     button.setAttribute('aria-expanded', String(!collapsed));
@@ -271,16 +271,19 @@
     const rect = button.getBoundingClientRect(), style = getComputedStyle(image);
     const [ox, oy] = style.transformOrigin.split(' ').map(Number.parseFloat);
     const mirror = !collapsed && rendering.mirrorScale(root) < 0 ? -1 : 1;
-    return { x: (mirror < 0 ? rect.right - x : x - rect.left) - parseFloat(style.left) - ox,
-      y: y - rect.top - parseFloat(style.top) - oy, mirror };
+    const size = getComputedStyle(button);
+    const scaleX = rect.width / parseFloat(size.width), scaleY = rect.height / parseFloat(size.height);
+    return { x: (mirror < 0 ? rect.right - x : x - rect.left) / scaleX - parseFloat(style.left) - ox,
+      y: (y - rect.top) / scaleY - parseFloat(style.top) - oy, mirror, scaleX, scaleY };
   }
   function pull(dx, dy) {
     // Convert the actual screen force through both mirrors and edge rotation.
     // A docked tip has only a few visible pixels: keep its elastic travel
     // proportional to character scale so pulling cannot bury it offscreen.
-    const limit = collapsed ? 10 * mesh.units / sourceScale : 34;
+    const limit = collapsed ? 10 * mesh.units / sourceScale : 160 * mesh.units;
     const distance = Math.hypot(dx, dy), weight = 1 / (1 + distance / limit);
-    const delta = new DOMPoint(dx * gesture.grab.mirror * weight, dy * weight).matrixTransform(baseMatrix.inverse());
+    const delta = new DOMPoint(dx * gesture.grab.mirror * weight / gesture.grab.scaleX,
+      dy * weight / gesture.grab.scaleY).matrixTransform(baseMatrix.inverse());
     mesh.pull(gesture.source, delta.x / mesh.units, delta.y / mesh.units);
   }
   function cancelGesture(preserveMesh = false) {
@@ -353,14 +356,14 @@
     screenAt(source) {
       const p = mesh.map(source), g = grabVector(0, 0);
       const point = new DOMPoint((p.x - 470) * mesh.units, (p.y - 800) * mesh.units).matrixTransform(baseMatrix);
-      return { x: (point.x - g.x) * g.mirror, y: point.y - g.y };
+      return { x: (point.x - g.x) * g.mirror * g.scaleX, y: (point.y - g.y) * g.scaleY };
     }
   };
   window.WhaleCollapse = Object.freeze({
     get collapsed() { return collapsed; }, get busy() { return busy; }, get edge() { return edge; },
     hit,
     paintBounds() {
-      const r = button.getBoundingClientRect(), pad = 40;
+      const r = button.getBoundingClientRect(), pad = 160 * mesh.units + 16;
       return { left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad, width: r.width + 2 * pad, height: r.height + 2 * pad };
     }
   });

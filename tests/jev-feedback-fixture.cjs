@@ -154,6 +154,7 @@ async function main() {
   const restarted = new JevConnection({ dataDir, env: { FIXTURE_JEV_KEY: 'FAKE_ONLY' } });
   dispatcher = createDispatcher({ dataDir, ...options, jevConnection: restarted });
   await win.reload();
+  if (process.platform === 'darwin') { app.focus({ steal: true }); win.show(); win.focus(); win.webContents.focus(); }
   await wait(() => ev("window.DragonDialogue?.title === '主人' && !!window.WhaleCollapse"), 'reloaded address');
   await wait(() => dispatcher.reactions.visible && !dispatcher.reactions.blocked, 'reloaded reaction state');
   send('no-dialogue', '继续修改。');

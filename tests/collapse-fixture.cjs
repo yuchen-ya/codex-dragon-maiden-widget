@@ -27,6 +27,7 @@ async function wait(code, label) {
   throw Error('Timed out: ' + label);
 }
 function click(point, clickCount = 1) {
+  if (process.platform === 'darwin') { app.focus({ steal: true }); win.focus(); win.webContents.focus(); }
   const p = { x: Math.round(point.x), y: Math.round(point.y), button: 'left', clickCount };
   win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x, y: p.y });
   win.webContents.sendInputEvent({ type: 'mouseDown', ...p });
@@ -56,6 +57,7 @@ async function restoreByClicks() {
   await delay(70);
 }
 async function dragTail() {
+  if (process.platform === 'darwin') { app.focus({ steal: true }); win.focus(); win.webContents.focus(); await delay(100); }
   const p = await tailPoint(), x = Math.round(p.x), y = Math.round(p.y);
   win.webContents.sendInputEvent({ type: 'mouseMove', x, y });
   win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
@@ -189,7 +191,7 @@ async function auditDeformation() {
         state.alphaAudit = { samples: samples.points.length, transparent };
         assert.equal(await ev(`(() => {const r=document.querySelector('.dshwv-tail-mesh').getBoundingClientRect();
           for(let y=Math.max(0,r.top);y<Math.min(innerHeight,r.bottom);y+=20)for(let x=Math.max(0,r.left);x<Math.min(innerWidth,r.right);x+=20)
-            if(!WhaleCollapse.hit(x,y)&&!WhaleRendering.hitCache.hit(document.querySelector('.dshwv-img'),x,y,WhaleRendering.mirrorScale(document.querySelector('.dshwv-root'))<0))
+            if(!document.elementFromPoint(x,y)?.closest('.dshwv-menu-btn')&&!WhaleCollapse.hit(x,y)&&!WhaleRendering.hitCache.hit(document.querySelector('.dshwv-img'),x,y,WhaleRendering.mirrorScale(document.querySelector('.dshwv-root'))<0))
               return __whaleInputTest.hit({x,y});return true;})()`), false, 'transparent mesh area remains click-through');
       }
       poses.push(state);
@@ -294,8 +296,9 @@ async function main() {
       contextIsolation: true, nodeIntegration: false, sandbox: true, additionalArguments: ['--whale-render-test'] } });
   win.webContents.on('console-message', (_event, details) => { if (details.level === 'error') errors.push(details.message); });
   // Keep synthetic pointer coordinates independent of the user's real mouse.
-  win.setIgnoreMouseEvents(true, { forward: false });
+  if (process.platform !== 'darwin') win.setIgnoreMouseEvents(true, { forward: false });
   await win.loadURL('whale://widget/widget.html'); win.show(); win.focus();
+  if (process.platform === 'darwin') { app.focus({ steal: true }); win.webContents.focus(); }
   await wait('window.WhaleCollapse && WhaleRendering.hitCache.stats.decodes >= 2 && window.__whaleRenderTest.status().scale === 1.5', 'character and tail masks');
   await delay(350);
   if (process.argv.includes('--tail-audit')) { await auditDeformation(); return; }

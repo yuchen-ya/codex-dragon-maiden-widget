@@ -12,7 +12,9 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
   dispatcher.dispatch = async (url, options) => url.startsWith('/api/insights') ? { status: 200, headers: { 'Content-Type': 'application/json' }, body: Buffer.from(JSON.stringify({ subscription: { available: true, windows: [{ windowDurationMins: 10080, usedPercent: 50, resetsAt: Date.now() + 86400000 }] } })) } : original(url, options);
   try {
     const area = screen.getPrimaryDisplay().workArea;
-    await setHost({ hostAlive: true, hostPid: 123456, window: '0', visible: true, attached: true, bounds: screen.dipToScreenRect(null, { ...area, width: 1000, height: 800 }) });
+    const bounds = { ...area, width: 1000, height: 800 };
+    await setHost({ hostAlive: true, hostPid: 123456, window: '0', visible: true, attached: true,
+      bounds: process.platform === 'darwin' ? bounds : screen.dipToScreenRect(null, bounds) });
     await wait('window.__whaleRenderTest && document.querySelector(".dshwv-img")?.naturalWidth>0', 'image ready');
     await wait('document.readyState==="complete" && !__whaleRenderTest.status().busy', 'startup settled'); await delay(700);
     await ev('__whaleRenderTest.scale(1);__whaleRenderTest.place(350,420,false);__whaleRenderTest.close();');

@@ -57,7 +57,7 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
     checks.push('transparent pixels pass mouse events through; opaque pet enables input');
     await click(await hitPoint());
     await wait('window.__whaleRenderTest.status().shown && !window.__whaleRenderTest.status().switching', 'quota bubble');
-    await wait("document.querySelector('.dshwv-pop-open')?.innerText.includes('75.0%')", 'subscription quota');
+    await wait("document.querySelector('.dshwv-pop-open')?.innerText.includes('剩余 75%')", 'subscription quota');
     await delay(600); // Capture after the existing bubble text fade finishes.
     fs.writeFileSync(path.join(output, 'macos-quota.png'), (await window.webContents.capturePage()).toPNG());
     checks.push('mouse click opens the subscription quota bubble');
